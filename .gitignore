@@ -126,3 +126,4 @@ tools/ParallelWaveGAN
 # personal settings
 versa
 egs2/ljspeech/tts1/myscripts/job
+egs2/ljspeech/tts1/versa_cache
