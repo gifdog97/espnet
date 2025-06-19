@@ -122,3 +122,7 @@ tools/condarc
 tools/lightning_constraints.txt
 tools/versa
 tools/ParallelWaveGAN
+
+# personal settings
+versa
+egs2/ljspeech/tts1/myscripts/job
