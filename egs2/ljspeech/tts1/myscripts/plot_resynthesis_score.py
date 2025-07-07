@@ -32,7 +32,7 @@ def parse_result_file(file_path):
                 key, value = line.strip().split(" ")
                 if key.endswith(":"):
                     key = key[:-1]
-                result[key] = 100 * round(float(value), 3)
+                result[key] = float(value)
     return result
 
 
@@ -44,9 +44,9 @@ def load_results():
                 f"../exp/fixed_{MS}-{2**i}_dedup/tts_train_raw_phn_none/decode_with_ljspeech_style_melgan.v1/dev/scoring/versa_eval/avg_result.txt"
             )
             result_dict[f"fixed_{MS}-{2**i}_dedup"] = {
-                "wer": result["whisper_wer"],
-                "cer": result["whisper_cer"],
-                "utmos": result["utmos"],
+                "wer": round(100 * result["whisper_wer"], 3),
+                "cer": round(100 * result["whisper_cer"], 3),
+                "utmos": round(result["utmos"], 3),
             }
     return pd.DataFrame.from_dict(result_dict, orient="index")
 
