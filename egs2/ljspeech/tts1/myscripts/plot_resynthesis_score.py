@@ -32,7 +32,7 @@ def parse_result_file(file_path):
                 key, value = line.strip().split(" ")
                 if key.endswith(":"):
                     key = key[:-1]
-                result[key] = round(float(value), 3)
+                result[key] = 100 * round(float(value), 3)
     return result
 
 
@@ -87,28 +87,9 @@ def plot_heatmap(title, task_type, num):
     for MS in [20, 40, 80, 120, 160, 200, 240, 280]:
         indices = [f"fixed_{MS}-{2**i}_dedup" for i in range(7, 7 + 8)]
         ax.plot(range(8), list(df.loc[indices, task_type]))
-    # im = ax.imshow(data, vmin=0.45, vmax=0.75, aspect="equal")
-    # if num == 0:
-    #     ax.set_ylabel(r"segment ($N$)")
-    #     ax.set_yticks([i for i in range(8)], minor=False)
-    #     ax.set_yticklabels(y, minor=False, fontsize=8)
-    # else:
-    #     ax.set_yticks([])
-    #     ax.yaxis.set_ticklabels([])
     ax.set_xlabel("clusters (K)")
     ax.set_xticks([i for i in range(8)], minor=False)
     ax.set_xticklabels(x, minor=False, fontsize=9)
-    # for i in range(8):
-    #     for j in range(8):
-    #         val = f"{data[i][j]:.2f}".split(".")[1]
-    #         ax.text(
-    #             j,
-    #             i,
-    #             f".{val}",
-    #             ha="center",
-    #             va="center",
-    #             color="w",
-    #         )
     if num == 1:
         ax.legend(
             [f"N={MS}" for MS in [20, 40, 80, 120, 160, 200, 240, 280]],
