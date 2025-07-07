@@ -24,6 +24,12 @@ def get_args():
         help="Path to the transcript file.",
         default="transcription/fixed_20-128-0.3.txt",
     )
+    parser.add_argument(
+        "--output_file",
+        type=str,
+        help="Path to output scores.",
+        default="csv/bleu/fixed_20-128-0.3.txt",
+    )
     parser.add_argument("--debug", action="store_true")
 
     args = parser.parse_args()
@@ -145,17 +151,16 @@ def main():
     with Pool(n_processes) as pool:
         metrics = pool.map(run_f, [(t[1], terms) for t in tasks])
 
-    for (metric_name, _), metric in zip(tasks, metrics):
-        metric, sem = np.mean(metric), np.std(metric) / np.sqrt(len(metric))
+    with open(args.output_file, "w") as f:
+        for (metric_name, _), metric in zip(tasks, metrics):
+            metric, sem = np.mean(metric), np.std(metric) / np.sqrt(len(metric))
+            metric, sem = [round(100 * x, 2) for x in [metric, sem]]
+            f.write(f"{metric_name} {metric}+-{sem}\n")
 
-        metric, sem = [round(100 * x, 2) for x in [metric, sem]]
-
-        print(f"{metric_name} {metric} +- {sem}")
-
-    vert = np.sqrt(
-        round(100 * np.mean(metrics[0]), 2) * round(100 * np.mean(metrics[1]), 2)
-    )
-    print(f"VERT {vert}")
+        vert = np.sqrt(
+            round(100 * np.mean(metrics[0]), 2) * round(100 * np.mean(metrics[1]), 2)
+        )
+        f.write(f"VERT {vert}")
 
 
 def run_f(task_params):
