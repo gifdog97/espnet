@@ -137,10 +137,10 @@ def main():
         terms = terms[:10]
 
     tasks = [
-        ("Self-BLEU2-arithmetic", get_self_bleu2_arithmetic),
-        # ("Self-BLEU2-geometric", get_self_bleu2_geometric),
-        ("Auto-BLEU2-arithmetic", get_auto_bleu2_arithmetic),
-        # ("Auto-BLEU2-geometric", get_auto_bleu2_geometric),
+        # ("Self-BLEU2-arithmetic", get_self_bleu2_arithmetic),
+        ("Self-BLEU2-geometric", get_self_bleu2_geometric),
+        # ("Auto-BLEU2-arithmetic", get_auto_bleu2_arithmetic),
+        ("Auto-BLEU2-geometric", get_auto_bleu2_geometric),
         # ("Self-BLEU3-arithmetic", get_self_bleu3_arithmetic),
         # ("Self-BLEU3-geometric", get_self_bleu3_geometric),
         # ("Auto-BLEU3-arithmetic", get_auto_bleu3_arithmetic),
@@ -157,9 +157,7 @@ def main():
             metric, sem = [round(100 * x, 2) for x in [metric, sem]]
             f.write(f"{metric_name} {metric}+-{sem}\n")
 
-        vert = np.sqrt(
-            round(100 * np.mean(metrics[0]), 2) * round(100 * np.mean(metrics[1]), 2)
-        )
+        vert = round(np.sqrt(100 * np.mean(metrics[0]) * 100 * np.mean(metrics[1])), 2)
         f.write(f"VERT {vert}")
 
 
