@@ -35,7 +35,8 @@ def load_transcript(transcript_path: str) -> dict[str, str]:
         for line in f:
             wav_id, transcript = line.strip().split("|")
             if wav_id.startswith(current_id):
-                transcript_dict[current_id] += _postprocess(transcript)
+                # Use first sentence only
+                # transcript_dict[current_id] += _postprocess(transcript)
                 continue
             current_id = "-".join(wav_id.split("-")[:2])
             transcript_dict[current_id] = _postprocess(transcript)
@@ -44,7 +45,7 @@ def load_transcript(transcript_path: str) -> dict[str, str]:
 
 if __name__ == "__main__":
     args = get_args()
-    gold_dict = load_transcript("transcription/gold.txt")
+    # gold_dict = load_transcript("transcription/gold.txt")
     continuation_dict = load_transcript(args.asr_transcript)
     model_id = "meta-llama/Llama-3.1-8B"
     tokenizer = AutoTokenizer.from_pretrained(model_id)
@@ -53,14 +54,19 @@ if __name__ == "__main__":
     model.cuda()
     ppls = {}
     for wav_id, text in continuation_dict.items():
-        gold_inputs = tokenizer(gold_dict[wav_id], return_tensors="pt")
+        # if wav_id not in gold_dict:
+        #     print(f"Skipping {wav_id} as it is not in the gold transcript.")
+        #     ppls[wav_id] = None
+        #     continue
+        # gold_inputs = tokenizer(gold_dict[wav_id], return_tensors="pt")
         inputs = tokenizer(text, return_tensors="pt")
-        gold_length = gold_inputs["input_ids"].size(1)
-        if inputs["input_ids"].size(1) < gold_length:
-            ppls[wav_id] = None
-            print(f"Skipping {wav_id} due to short input length.")
-            continue
-        inputs = {k: v[:, :gold_length].cuda() for k, v in inputs.items()}  # GPUへ送る
+        # gold_length = gold_inputs["input_ids"].size(1)
+        # if inputs["input_ids"].size(1) < gold_length:
+        #     ppls[wav_id] = None
+        #     print(f"Skipping {wav_id} due to short input length.")
+        #     continue
+        # inputs = {k: v[:, :gold_length].cuda() for k, v in inputs.items()}  # GPUへ送る
+        inputs = {k: v.cuda() for k, v in inputs.items()}  # GPUへ送る
         # ラベルを自分自身にする（自己回帰モデル）
         labels = inputs["input_ids"]
         # 損失計算（=負の対数尤度の平均）
