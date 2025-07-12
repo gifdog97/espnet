@@ -77,29 +77,32 @@ y = [
 ]
 
 fig, axes = plt.subplots(
-    nrows=1, ncols=2, sharex=True, figsize=(5.6, 2.8), constrained_layout=True
+    nrows=2, ncols=1, sharex=True, figsize=(2.5, 4.0), constrained_layout=True, dpi=300
 )
 
 
 def plot_heatmap(title, task_type, num):
     ax = axes[num]
-    ax.set_title(title)
+    ax.set_title(title, fontsize=11)
     for MS in [20, 40, 80, 120, 160, 200, 240, 280]:
         indices = [f"fixed_{MS}-{2**i}_dedup" for i in range(7, 7 + 8)]
         ax.plot(range(8), list(df.loc[indices, task_type]))
-    ax.set_xlabel("clusters (K)")
+    yticklabels = ax.get_yticklabels()
+    ax.set_yticklabels(yticklabels, fontsize=11)
     ax.set_xticks([i for i in range(8)], minor=False)
-    ax.set_xticklabels(x, minor=False, fontsize=9)
     if num == 1:
+        ax.set_xlabel("clusters (K)", fontsize=10)
+        ax.set_xticklabels(x, minor=False, fontsize=10)
         ax.legend(
             [f"N={MS}" for MS in [20, 40, 80, 120, 160, 200, 240, 280]],
             loc="lower left",
             bbox_to_anchor=(0, 0),
             fontsize=9,
+            ncol=2,
         )
 
 
-plot_heatmap("CER", "cer", 0)
-plot_heatmap("UTMOS", "utmos", 1)
+plot_heatmap(r"CER$\downarrow$", "cer", 0)
+plot_heatmap(r"UTMOS$\uparrow$", "utmos", 1)
 
-fig.savefig("./fig/fig-cer_utmos.pdf")
+fig.savefig("./fig/fig-cer_utmos.eps")
