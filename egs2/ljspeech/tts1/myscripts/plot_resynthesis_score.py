@@ -77,13 +77,14 @@ y = [
 ]
 
 fig, axes = plt.subplots(
-    nrows=2, ncols=1, sharex=True, figsize=(2.5, 4.0), constrained_layout=True, dpi=300
+    nrows=2, ncols=1, sharex=True, figsize=(2.8, 4.0), constrained_layout=True, dpi=300
 )
+fig.get_layout_engine().set(hspace=0.10)  # ← 0.20 が既定。大きいほど行間が広がる
 
 
 def plot_heatmap(title, task_type, num):
     ax = axes[num]
-    ax.set_title(title, fontsize=11)
+    ax.set_title(title, fontsize=12)
     for MS in [20, 40, 80, 120, 160, 200, 240, 280]:
         indices = [f"fixed_{MS}-{2**i}_dedup" for i in range(7, 7 + 8)]
         ax.plot(range(8), list(df.loc[indices, task_type]))
