@@ -1,6 +1,6 @@
 import argparse
+import math
 
-import numpy as np
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -53,6 +53,8 @@ if __name__ == "__main__":
     model.eval()
     model.cuda()
     ppls = {}
+    total_nll = 0
+    total_length = 0
     for wav_id, text in continuation_dict.items():
         # if wav_id not in gold_dict:
         #     print(f"Skipping {wav_id} as it is not in the gold transcript.")
@@ -72,17 +74,14 @@ if __name__ == "__main__":
         # 損失計算（=負の対数尤度の平均）
         with torch.no_grad():
             outputs = model(**inputs, labels=labels)
-            neg_log_likelihood = outputs.loss
-        # Perplexity = exp(平均負対数尤度)
-        ppl = torch.exp(neg_log_likelihood)
+            nll = outputs.loss
+        total_nll += nll.item() * inputs["input_ids"].size(1)
+        total_length += inputs["input_ids"].size(1)
+        # 文ごとのPPLを計算
+        ppl = torch.exp(nll)
         ppls[wav_id] = ppl.item()
     with open(args.output_file, "w") as f:
         for wav_id, ppl in ppls.items():
-            if ppl is not None:
-                f.write(f"{wav_id}|{ppl:.3f}\n")
-            else:
-                f.write(f"{wav_id}|None\n")
-        ppl_without_none = {k: v for k, v in ppls.items() if v is not None}
-        ppl_values = np.array(list(ppl_without_none.values()))
-        f.write(f"Average|{np.mean(ppl_values):.3f}\n")
-        f.write(f"Median|{np.median(ppl_values):.3f}\n")
+            f.write(f"{wav_id}|{ppl:.3f}\n")
+        ppl_corpus = math.exp(total_nll / total_length)
+        f.write(f"PPL_corpus|{ppl_corpus:.3f}\n")
