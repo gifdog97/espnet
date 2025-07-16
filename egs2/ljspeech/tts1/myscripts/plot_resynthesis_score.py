@@ -77,21 +77,32 @@ y = [
 ]
 
 fig, axes = plt.subplots(
-    nrows=2, ncols=1, sharex=True, figsize=(2.8, 4.0), constrained_layout=True, dpi=300
+    # nrows=2, ncols=1, sharex=True, figsize=(2.8, 4.0), constrained_layout=True, dpi=300
+    nrows=3,
+    ncols=1,
+    sharex=True,
+    figsize=(2.8, 5.6),
+    constrained_layout=True,
+    dpi=300,
 )
 fig.get_layout_engine().set(hspace=0.10)  # ← 0.20 が既定。大きいほど行間が広がる
 
 
-def plot_heatmap(title, task_type, num):
+def plot(title, task_type, num):
     ax = axes[num]
     ax.set_title(title, fontsize=12)
     for MS in [20, 40, 80, 120, 160, 200, 240, 280]:
         indices = [f"fixed_{MS}-{2**i}_dedup" for i in range(7, 7 + 8)]
         ax.plot(range(8), list(df.loc[indices, task_type]))
+    if num == 0:
+        yticks = [0, 20, 40, 60, 80]
+    if num == 2:
+        yticks = [2.5, 3.0, 3.5, 4.0]
+    ax.set_yticks(yticks)
     yticklabels = ax.get_yticklabels()
     ax.set_yticklabels(yticklabels, fontsize=11)
     ax.set_xticks([i for i in range(8)], minor=False)
-    if num == 1:
+    if num == 2:
         ax.set_xlabel("clusters (K)", fontsize=10)
         ax.set_xticklabels(x, minor=False, fontsize=10)
         ax.legend(
@@ -103,7 +114,27 @@ def plot_heatmap(title, task_type, num):
         )
 
 
-plot_heatmap(r"CER$\downarrow$", "cer", 0)
-plot_heatmap(r"UTMOS$\uparrow$", "utmos", 1)
+def plot_good(title, task_type, num):
+    ax = axes[num]
+    ax.set_title(title, fontsize=12)
+    for MS in [20, 40, 80, 120, 160, 200, 240, 280]:
+        indices = [f"fixed_{MS}-{2**i}_dedup" for i in range(7, 7 + 8)]
+        cer_values = list(df.loc[indices, task_type])
+        x, y = [], []
+        for i, value in enumerate(cer_values):
+            if value < 10:
+                x.append(i)
+                y.append(value)
+        ax.plot(x, y)
+    yticks = [0, 2, 4, 6, 8]
+    ax.set_yticks(yticks)
+    yticklabels = ax.get_yticklabels()
+    ax.set_yticklabels(yticklabels, fontsize=11)
+    ax.set_xticks([i for i in range(8)], minor=False)
+
+
+plot(r"CER$\downarrow$", "cer", 0)
+plot_good(r"CER (<10)", "cer", 1)
+plot(r"UTMOS$\uparrow$", "utmos", 2)
 
 fig.savefig("./fig/fig-cer_utmos.eps")
