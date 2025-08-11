@@ -24,11 +24,22 @@ valid_set=dev
 test_sets="dev eval1"
 datadir="data_orig"
 
+train_config=conf/train.yaml
+inference_config=conf/decode.yaml
+
 # 引数の解析
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --datadir)
       datadir="$2"
+      shift 2
+      ;;
+    --train_config)
+      train_config="$2"
+      shift 2
+      ;;
+    --inference_config)
+      inference_config="$2"
       shift 2
       ;;
     *)
@@ -38,9 +49,6 @@ while [[ $# -gt 0 ]]; do
 done
 
 set -- "${ORIGINAL_ARGS[@]}"
-
-train_config=conf/train.yaml
-inference_config=conf/decode.yaml
 
 # g2p=g2p_en # Include word separator
 # g2p=g2p_en_no_space # Include no word separator
