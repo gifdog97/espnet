@@ -125,5 +125,11 @@ tools/ParallelWaveGAN
 
 # personal settings
 versa
-egs2/ljspeech/tts1/myscripts/job
 egs2/ljspeech/tts1/versa_cache
+egs2/ljspeech/tts1/myscripts/job
+egs2/ljspeech/tts1/myscripts/transcription
+egs2/ljspeech/tts1/myscripts/csv/bleu
+egs2/ljspeech/tts1/myscripts/csv/ppl
+egs2/ljspeech/tts1/myscripts/csv/continuation_score
+egs2/ljspeech/tts1/myscripts/fig/continuation_plot
+egs2/ljspeech/tts1/myscripts/pairwise
