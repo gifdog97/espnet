@@ -17,6 +17,34 @@ font_prop = fm.FontProperties(fname=font_path)
 plt.rcParams["font.family"] = font_prop.get_name()
 
 
+def parse_bitrate(file_path):
+    """
+    Input:
+                N=20	N=40	N=80	N=120	N=160	N=200	N=240	N=280
+        K=128	194.3	152.3	96.5	69.9	54.4	44.3	36.7	31.6
+        K=256	237.2	181.0	116.1	81.9	63.2	50.8	42.6	36.8
+        K=512	282.3	211.8	130.3	92.6	71.6	57.6	48.3	41.7
+        K=1024	326.0	237.7	145.4	103.0	78.8	63.9	53.6	46.1
+        K=2048	372.5	265.1	159.4	112.8	86.8	69.9	58.7	50.5
+        K=4096	431.3	299.6	175.9	123.4	94.3	76.0	63.7	54.7
+        K=8192	497.4	334.9	192.4	133.4	101.5	81.4	67.9	58.0
+        K=16384	576.7	372.8	208.7	143.1	108.5	86.5	71.8	61.2
+    """
+    with open(file_path, "r") as f:
+        lines = f.readlines()
+    Ns = [N_val.split("=")[1] for N_val in lines[0].strip().split("\t")]
+    result = {}
+    for line in lines[1:]:
+        parts = line.strip().split("\t")
+        K = parts[0].split("=")[1]
+        values = list(map(float, parts[1:]))
+        for N, value in zip(Ns, values):
+            key = f"fixed_{N}-{K}_dedup"
+            result[key] = value
+    print(result)
+    return result
+
+
 def parse_result_file(file_path):
     """
     Parse the result file and return a Dict.
@@ -38,15 +66,18 @@ def parse_result_file(file_path):
 
 def load_results():
     result_dict = {}
+    bitrate_dict = parse_bitrate("csv/bitrate.csv")
     for MS in [280, 240, 200, 160, 120, 80, 40, 20]:
-        for i in range(7, 15):
+        for i in range(7, 7 + 8):
             result = parse_result_file(
                 f"../exp/fixed_{MS}-{2**i}_dedup/tts_train_raw_phn_none/decode_with_ljspeech_style_melgan.v1/dev/scoring/versa_eval/avg_result.txt"
+                # f"../exp/fixed_{MS}-{2**i}_dedup-vits/tts_train_vits_raw_phn_none/decode_with_vits/dev/scoring/versa_eval/avg_result.txt"
             )
             result_dict[f"fixed_{MS}-{2**i}_dedup"] = {
                 "wer": round(100 * result["whisper_wer"], 3),
                 "cer": round(100 * result["whisper_cer"], 3),
                 "utmos": round(result["utmos"], 3),
+                "bitrate": round(bitrate_dict[f"fixed_{MS}-{2**i}_dedup"]),
             }
     return pd.DataFrame.from_dict(result_dict, orient="index")
 
@@ -54,6 +85,7 @@ def load_results():
 df = load_results()
 
 df.to_csv("csv/asr-utmos.csv", index=True)
+# df.to_csv("csv/asr-utmos-vits.csv", index=True)
 
 x = [
     r"$2^{7}$",
@@ -137,4 +169,5 @@ plot(r"CER$\downarrow$", "cer", 0)
 plot_good(r"CER (<10)", "cer", 1)
 plot(r"UTMOS$\uparrow$", "utmos", 2)
 
-fig.savefig("./fig/fig-cer_utmos.eps")
+fig.savefig("./fig/fig-cer_utmos.png")
+# fig.savefig("./fig/fig-cer_utmos-vits.png")

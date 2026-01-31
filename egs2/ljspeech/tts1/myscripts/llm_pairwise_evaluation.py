@@ -1,0 +1,190 @@
+import csv
+import os
+import random
+import re
+import time
+import traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
+from string import Template
+from typing import Union
+
+from openai import OpenAI, RateLimitError
+from tqdm import tqdm
+
+with open("secret.txt", "r") as f:
+    lines = f.readlines()
+    for line in lines:
+        if line.startswith("OPENAI_API_KEY="):
+            api_key = line.strip().split("=")[1]
+        if line.startswith("OPENAI_API_BASE="):
+            api_base = line.strip().split("=")[1]
+client = OpenAI(
+    api_key=api_key,
+    base_url=api_base,
+)
+
+CONTINUATION_RESULTS = "/work/gk77/k77035/espnet/egs2/ljspeech/tts1/myscripts/csv/continuation_result-vits.tsv"
+PROMPT_TEMPLATE = Template("""
+# Instructions
+
+Please act as an impartial judge and evaluate the quality of two texts which occur in the context of a book. These texts are transcribed from audio recordings that were truncated to a fixed duration. Your job is to consider the following criteria to evaluate which text is better:
+
+- Fluency: How grammatically correct is the text?
+- Coherence: How well do the sentences of the text fit together?
+- Logicality: How much does the text obey common sense?
+
+First, read text A and consider its fluency, coherence, and logicality. Do not penalize the text for ending mid-sentence or mid-paragraph.
+
+Then, read text B and consider its fluency, coherence, and logicality. Do not penalize the text for ending mid-sentence or mid-paragraph.
+
+Afterwards, compare the fluency and coherence of the two texts. Do not penalize either text for ending mid-sentence or mid-paragraph.
+
+Finally, after providing your explanations, you must output only one of the following choices as your final verdict with a label:
+1. Text A is significantly better: [[A>>B]]
+2. Text A is slightly better: [[A>B]]
+3. Tie, relatively the same: [[A=B]]
+4. Text B is slightly better: [[B>A]]
+5. Text B is significantly better: [[B>>A]]
+
+Example output: "My final verdict is tie: [[A=B]]".
+
+# Comparison task
+ 
+## ---------- Text A ----------
+${text_A}
+
+## ---------- Text B ----------
+${text_B}
+
+## ---------- Detailed Comparison of Continuations ----------
+""")
+
+
+def extract_transcriptions(file_path: Path):
+    transcriptions = {}
+    with open(file_path) as f:
+        for line in f:
+            wav_id, transcription = line.strip().split("|")
+            if not wav_id.endswith("-0"):
+                continue
+            transcriptions[wav_id] = transcription.strip()
+    return transcriptions
+
+
+def with_retry(func, *args, max_retries=5, **kwargs):
+    for i in range(max_retries):
+        try:
+            return func(*args, **kwargs)
+        except RateLimitError:
+            wait = 2**i + random.random()
+            print(f"RateLimit hit, retrying in {wait:.1f} sec...")
+            time.sleep(wait)
+    raise RuntimeError("Max retries exceeded")
+
+
+def calculate_score(
+    setting_transcriptions_X: dict, setting_transcriptions_Y: dict
+) -> dict[str, Union[int, float]]:
+    """
+    Quality score of X over Y judged by GPT-4.1-mini.
+    Score is between -1 and 1, and if X is better than Y, score is positive.
+    """
+    setting_X = setting_transcriptions_X["setting"]
+    setting_Y = setting_transcriptions_Y["setting"]
+    print(f"{setting_X} vs {setting_Y}")
+    os.makedirs(f"pairwise/vits/{setting_X}_vs_{setting_Y}", exist_ok=True)
+    transcriptions_X = setting_transcriptions_X["transcription"]
+    transcriptions_Y = setting_transcriptions_Y["transcription"]
+    score_map = {"A>>B": 1, "A>B": 0.5, "A=B": 0, "B>A": -0.5, "B>>A": -1}
+    total_count = 0
+    total_score = 0
+    for wav_id, transcription_x in tqdm(transcriptions_X.items()):
+        transcription_y = transcriptions_Y.get(wav_id)
+        if not transcription_y:
+            continue
+        total_count += 1
+        # flip X and Y with 50% probability
+        ab = random.random() < 0.5
+        if ab:
+            prompt = PROMPT_TEMPLATE.substitute(
+                text_A=transcription_x, text_B=transcription_y
+            )
+        else:
+            prompt = PROMPT_TEMPLATE.substitute(
+                text_A=transcription_y, text_B=transcription_x
+            )
+        completion = with_retry(
+            client.chat.completions.create,
+            model="gpt-4.1-mini",
+            messages=[{"role": "user", "content": prompt}],
+        )
+        completion_text = completion.choices[0].message.content
+        assert isinstance(completion_text, str)
+        with open(f"pairwise/vits/{setting_X}_vs_{setting_Y}/{wav_id}.txt", "w") as f:
+            if ab:
+                f.write(f"Text A ({setting_X})\n")
+                f.write(transcription_x + "\n")
+                f.write(f"Text B ({setting_Y})\n")
+                f.write(transcription_y + "\n")
+            else:
+                f.write(f"Text A ({setting_Y})\n")
+                f.write(transcription_y + "\n")
+                f.write(f"Text B ({setting_X})\n")
+                f.write(transcription_x + "\n")
+            f.write("\n")
+            f.write(completion_text)
+        judge = re.findall(r"\[\[(.*?)\]\]", completion_text.split("\n")[-1])[0]
+        if ab:
+            score = score_map[judge]
+        else:
+            score = -score_map[judge]
+        total_score += score
+    return {
+        "setting_X": setting_X,
+        "setting_Y": setting_Y,
+        "total_count": int(total_count),
+        "total_score": int(total_score),
+        "average_score": float(total_score / total_count),
+    }
+
+
+def main():
+    with open(Path(CONTINUATION_RESULTS), "r") as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        valid_settings = [
+            f"{row['setting']}-{row['temperature']}"
+            for row in reader
+            if row["temperature"] != "None"
+        ]
+    results = []
+    with ThreadPoolExecutor(max_workers=8) as executor:  # 同時に8リクエストまで
+        futures = []
+        for setting_X, setting_Y in [
+            ("40-256-0.6", "120-8192-0.6"),
+        ]:
+            # itertools.product(valid_settings, repeat=2): # CHANGE
+            transcription_X = extract_transcriptions(
+                Path(f"transcription/fixed_{setting_X}.txt")  # CHANGE
+            )
+            transcription_Y = extract_transcriptions(
+                Path(f"transcription/fixed_{setting_Y}.txt")  # CHANGE
+            )
+            dict_X = {"setting": setting_X, "transcription": transcription_X}
+            dict_Y = {"setting": setting_Y, "transcription": transcription_Y}
+            futures.append(executor.submit(calculate_score, dict_X, dict_Y))
+        for future in as_completed(futures):
+            try:
+                results.append(future.result())
+            except Exception as e:
+                print(f"Error occurred: {e}")
+                traceback.print_exc()
+    with open("pairwise/result_summary-rest.csv", "w") as f:
+        writer = csv.DictWriter(f, fieldnames=results[0].keys())
+        writer.writeheader()
+        for result in results:
+            writer.writerow(result)
+
+
+if __name__ == "__main__":
+    main()

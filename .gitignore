@@ -133,3 +133,4 @@ egs2/ljspeech/tts1/myscripts/csv/ppl
 egs2/ljspeech/tts1/myscripts/csv/continuation_score
 egs2/ljspeech/tts1/myscripts/fig/continuation_plot
 egs2/ljspeech/tts1/myscripts/pairwise
+egs2/ljspeech/tts1/myscripts/secret.txt
