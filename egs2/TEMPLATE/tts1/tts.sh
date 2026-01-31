@@ -1124,9 +1124,9 @@ fi
 
 if ! "${skip_scoring}"; then
     if [ ${stage} -le 9 ] && [ ${stop_stage} -ge 9 ]; then
-        _gen_dir=${tts_exp}/${inference_tag}/dev
+        _gen_dir=${tts_exp}/${inference_tag}/eval1
         log "Stage 9: Scoring: TTS scoring via versa logs on ${_gen_dir}"
-        _data=${data_feats}/dev
+        _data=${data_feats}/eval1
 
         log "Scoring TTS evaluation via VERSA, using default ${versa_config}. You can visit https://github.com/shinjiwlab/versa?tab=readme-ov-file#list-of-metrics for more supported metrics."
         _opts=
