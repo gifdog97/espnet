@@ -1,6 +1,7 @@
 import csv
 from pathlib import Path
 
+import matplotlib as mpl
 import matplotlib.font_manager as fm
 import matplotlib.pyplot as plt
 import numpy as np
@@ -13,6 +14,8 @@ rcParams["pdf.fonttype"] = 42
 font_path = (
     "/work/01/gk77/k77035/.local/share/fonts/Times New Roman/times new roman.ttf"
 )
+mpl.rcParams["axes.unicode_minus"] = False
+
 
 # フォントプロパティを作成
 font_prop = fm.FontProperties(fname=font_path)
