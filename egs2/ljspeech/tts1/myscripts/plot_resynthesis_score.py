@@ -145,7 +145,7 @@ def plot(axes, df: pd.DataFrame, num: int, x_axis: str) -> None:
     if num == 1:
         ax.set_yticklabels([])  # hide right y tick labels
     if num == 0:
-        ax.set_ylabel(r"CER$\downarrow$", fontsize=12)
+        ax.set_ylabel(r"CER [%] $\downarrow$", fontsize=12)
     ax.set_ylim(-5, 95)
     ax.set_yticks([0, 20, 40, 60, 80], minor=False)
 
@@ -181,7 +181,7 @@ def plot(axes, df: pd.DataFrame, num: int, x_axis: str) -> None:
 
     ax.set_xticklabels([])  # hide x tick labels on the middle plot
     if num == 0:
-        ax.set_ylabel(r"CER (<10)", fontsize=12)
+        ax.set_ylabel(r"CER [%](<10)", fontsize=12)
     if num == 1:
         ax.set_yticklabels([])  # hide right y tick labels
     ax.set_ylim(0, 10)
@@ -214,7 +214,7 @@ def plot(axes, df: pd.DataFrame, num: int, x_axis: str) -> None:
                 fontsize=8,
                 ncol=2,
             )
-        ax.set_xlabel("Bitrate (x100)", fontsize=12)
+        ax.set_xlabel("Bitrate (x100) [bit/s]", fontsize=12)
     else:
         for N in _N_LIST:
             indices = [f"fixed_{N}-{2**i}_dedup" for i in _I_LIST]
@@ -252,22 +252,21 @@ def plot(axes, df: pd.DataFrame, num: int, x_axis: str) -> None:
             ax.set_yticklabels([])  # hide right y tick labels
         ax.set_xlabel("Cluster size (K)", fontsize=12)
 
-    ax.set_ylim(2.25, 4.5)
-    ax.set_yticks([2.5, 3.0, 3.5, 4.0, 4.5], minor=False)
+    ax.set_ylim(1, 5)
+    ax.set_yticks([1, 2, 3, 4, 5], minor=False)
     if num == 0:
         ax.set_ylabel(r"UTMOS$\uparrow$", fontsize=12)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Plot resynthesis scores (CER / UTMOS) for ICASSP figure."
+        description="Plot resynthesis scores (CER / UTMOS)."
     )
     parser.add_argument(
         "--x-axis",
         choices=["bitrate", "K"],
         default="bitrate",
-        help="Choose x-axis. 'bitrate' reproduces plot_resynthesis_score_icassp.py, "
-        "'K' reproduces plot_resynthesis_score_icassp_K.py.",
+        help="Choose x-axis. 'bitrate' or 'K'.",
     )
     parser.add_argument(
         "--bitrate-csv",
