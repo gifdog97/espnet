@@ -184,7 +184,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--x-axis",
         choices=["K", "bitrate"],
-        default="K",
+        default="bitrate",
         help="x-axis type",
     )
     parser.add_argument(
@@ -195,8 +195,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # load results
-    df_t = pd.read_csv("./csv/continuation_result.tsv", sep="\t", index_col=0)
-    df_v = pd.read_csv("./csv/continuation_result-vits.tsv", sep="\t", index_col=0)
+    df_t = pd.read_csv("./csv/continuation_result.csv", index_col=0)
+    df_v = pd.read_csv("./csv/continuation_result-vits.csv", index_col=0)
 
     df_t = df_t[df_t["temperature"].notna()]
     df_v = df_v[df_v["temperature"].notna()]
