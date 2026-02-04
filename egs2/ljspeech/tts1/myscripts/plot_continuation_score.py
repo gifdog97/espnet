@@ -213,8 +213,8 @@ if __name__ == "__main__":
     plot(axes, df_t, 0, args.x_axis)
     plot(axes, df_v, 1, args.x_axis)
 
+    output = args.output
     if args.output is None:
-        suffix = "K" if args.x_axis == "K" else "bitrate"
-        args.output = f"./fig/continuation_score_{suffix}.pdf"
+        output = f"./fig/continuation_score_{args.x_axis}.pdf"
 
-    fig.savefig(args.output)
+    fig.savefig(output)
