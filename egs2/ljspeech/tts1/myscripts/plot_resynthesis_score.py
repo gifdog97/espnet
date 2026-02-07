@@ -300,7 +300,7 @@ def plot(axes, df: pd.DataFrame, x_axis: str) -> None:
 
         ax.set_xticklabels([])  # hide x tick labels on the top plot
         if num == 0:
-            ax.set_ylabel(r"MCD $\downarrow$", fontsize=12)
+            ax.set_ylabel(r"MCD [dB] $\downarrow$", fontsize=12)
         if num == 1:
             ax.set_yticklabels([])  # hide right y tick labels
         ax.set_ylim(4.5, 10.5)
@@ -340,7 +340,7 @@ def plot(axes, df: pd.DataFrame, x_axis: str) -> None:
 
         ax.set_xticklabels([])  # hide x tick labels on the top plot
         if num == 0:
-            ax.set_ylabel(r"Log_F0_RMSE $\downarrow$", fontsize=12)
+            ax.set_ylabel(r"Log_F0_RMSE [cent] $\downarrow$", fontsize=12)
         if num == 1:
             ax.set_yticklabels([])  # hide right y tick labels
         ax.set_ylim(-0.05, 1)
