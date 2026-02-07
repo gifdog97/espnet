@@ -1,4 +1,6 @@
 import argparse
+import csv
+import re
 from pathlib import Path
 
 try:
@@ -32,7 +34,7 @@ def parse_bitrate(file_path: str) -> dict[str, float]:
         K=128   194.3   152.3   ...
         ...
     Returns:
-        {"fixed_{N}-{K}_dedup": bitrate_value, ...}
+        {"{N}-{K}": bitrate_value, ...}
     """
     with open(file_path, "r") as f:
         lines = f.readlines()
@@ -43,55 +45,91 @@ def parse_bitrate(file_path: str) -> dict[str, float]:
         K = parts[0].split("=")[1]
         values = list(map(float, parts[1:]))
         for N, value in zip(Ns, values):
-            key = f"fixed_{N}-{K}_dedup"
+            key = f"{N}-{K}"
             bitrate_dict[key] = value
     return bitrate_dict
 
 
-def parse_result_file(file_path: str) -> dict[str, float]:
-    """
-    Parse the result file and return a dict.
-    Format: key: value\n (or key value\n)
-    """
-    result: dict[str, float] = {}
-    with open(file_path, "r") as f:
-        for line in f:
-            if not line.strip():
-                continue
-            key, value = line.strip().split(" ")
-            if key.endswith(":"):
-                key = key[:-1]
-            result[key] = float(value)
-    return result
+def parse_error_rates(error_rates_csv: str) -> dict[str, dict[str, float]]:
+    # {"tacotron2-20-128": {"wer": ..., "cer": ...}, ..., "gold": {"wer": ..., "cer": ...}}
+    error_rates_dict = {}
+    f = open(error_rates_csv, "r")
+    reader = csv.DictReader(f)
+    for row in reader:
+        if row["Model"] == "Gold":
+            setting = "gold"
+        else:
+            setting = f"{row['Model']}-{row['N']}-{row['K']}"
+        error_rates_dict[setting] = {
+            "wer": float(row["WER"]),
+            "cer": float(row["CER"]),
+        }
+    f.close()
+    return error_rates_dict
 
 
-def load_results(tts_name: str, bitrate_csv: str = "csv/bitrate.csv") -> pd.DataFrame:
-    result_dict: dict[str, dict[str, float]] = {}
-    bitrate_dict = parse_bitrate(bitrate_csv)
-
-    for N in [280, 240, 200, 160, 120, 80, 40, 20]:
-        for i in range(7, 7 + 8):
-            exp_name = f"fixed_{N}-{2**i}_dedup"
-            if tts_name == "tacotron2":
-                result = parse_result_file(
-                    f"../exp/{exp_name}/tts_train_raw_phn_none/"
-                    "decode_with_ljspeech_style_melgan.v1/dev/scoring/versa_eval/avg_result.txt"
-                )
-            elif tts_name == "vits":
-                result = parse_result_file(
-                    f"../exp/{exp_name}-vits/tts_train_vits_raw_phn_none/"
-                    "decode_with_vits/dev/scoring/versa_eval/avg_result.txt"
-                )
-            else:
-                raise ValueError(f"Unknown tts_name: {tts_name}")
-
-            result_dict[exp_name] = {
-                "wer": round(100 * result["whisper_wer"], 3),
-                "cer": round(100 * result["whisper_cer"], 3),
-                "utmos": round(result["utmos"], 3),
-                "bitrate": round(bitrate_dict[exp_name]),
+def parse_dsmetrics(dsmetrics_dir: str) -> dict[str, dict[str, float]]:
+    # {"tacotron2-20-128": {"MCD": ...}, ..., "gold": {"MCD": None, ..., "utmos": value}}
+    dsmetrics_dict = {}
+    for csv_path in Path(dsmetrics_dir).glob("*.csv"):
+        setting = csv_path.stem  # e.g., "tacotron2-20-128"
+        df = pd.read_csv(csv_path)
+        if "gold" in setting:
+            dsmetrics_dict["gold"] = {
+                "MCD": None,
+                "Log_F0_RMSE": None,
+                "speechBERTScore": None,
+                "UTMOS": df["UTMOS"].iloc[0],
             }
-    return pd.DataFrame.from_dict(result_dict, orient="index")
+        else:
+            dsmetrics_dict[setting] = {
+                "MCD": df["MCD"].iloc[0],
+                "Log_F0_RMSE": df["LogF0RMSE"].iloc[0],
+                "speechBERTScore": df["speechBERTScore"].iloc[0],
+                "UTMOS": df["UTMOS"].iloc[0],
+            }
+    return dsmetrics_dict
+
+
+SUFFIX_RE = re.compile(r"(\d+-\d+)$")  # 例: "20-128" を末尾から取る
+
+
+def load_results(
+    bitrate_csv: str = "csv/bitrate.csv",
+    error_rates_csv: str = "csv/resynthesis_error_rates.csv",
+    dsmetrics_dir: str = "csv/resynthesis_dsmetrics",
+) -> pd.DataFrame:
+    bitrate_dict = parse_bitrate(bitrate_csv)
+    error_rates_dict = parse_error_rates(error_rates_csv)
+    dsmetrics_dict = parse_dsmetrics(dsmetrics_dir)
+
+    if set(error_rates_dict) != set(dsmetrics_dict):
+        missing_in_ds = set(error_rates_dict) - set(dsmetrics_dict)
+        missing_in_er = set(dsmetrics_dict) - set(error_rates_dict)
+        raise ValueError(
+            f"Key mismatch: missing_in_ds={missing_in_ds}, missing_in_er={missing_in_er}"
+        )
+
+    rows = {}
+    for setting in error_rates_dict:
+        row = {**error_rates_dict[setting], **dsmetrics_dict[setting]}
+        # bitrate 付与
+        if setting == "gold":
+            row["bitrate"] = None  # or float("nan")
+        else:
+            m = SUFFIX_RE.search(setting)
+            if not m:
+                raise ValueError(
+                    f"Cannot parse suffix (e.g., '20-128') from setting: {setting}"
+                )
+            suffix = m.group(1)
+            row["bitrate"] = bitrate_dict.get(suffix)  # getにしておくと落ちにくい
+            if row["bitrate"] is None:
+                raise ValueError(
+                    f"Bitrate not found for suffix={suffix} (setting={setting})"
+                )
+        rows[setting] = row
+    return pd.DataFrame.from_dict(rows, orient="index")
 
 
 _MARKERS = "osDv^<>X"
@@ -108,103 +146,252 @@ def _x_values(df: pd.DataFrame, indices: list[str], x_axis: str) -> list[float]:
     raise ValueError(f"Unknown x_axis: {x_axis}")
 
 
-def plot(axes, df: pd.DataFrame, num: int, x_axis: str) -> None:
-    # --- Row 1: CER ---
-    ax = axes[0][num]
-    ax.grid()
-    ax.set_title("Tacotron2" if num == 0 else "VITS", fontsize=12)
+def plot(axes, df: pd.DataFrame, x_axis: str) -> None:
+    # --- Row 1: WER ---
+    for num in range(2):
+        ax = axes[0][num]
+        model_name = "tacotron2" if num == 0 else "vits"
+        ax.set_title(model_name, fontsize=12)
+        if x_axis == "bitrate":
+            for N, marker in zip(_N_LIST, _MARKERS):
+                indices = [f"{model_name}-{N}-{2**i}" for i in _I_LIST]
+                ax.plot(
+                    _x_values(df, indices, x_axis),
+                    list(df.loc[indices, "wer"]),
+                    marker=marker,
+                    markersize=3,
+                    linewidth=2,
+                    alpha=0.7,
+                )
+            ax.set_xlim(0, 600)
+            ax.set_xticks([0, 100, 200, 300, 400, 500, 600], minor=False)
+            ax.set_xticklabels([0, 1, 2, 3, 4, 5, 6], minor=False)
+        else:  # x_axis == "K"
+            for N in _N_LIST:
+                indices = [f"{model_name}-{N}-{2**i}" for i in _I_LIST]
+                ax.plot(
+                    _x_values(df, indices, x_axis),
+                    list(df.loc[indices, "wer"]),
+                    marker="o",
+                    markersize=2.5,
+                    linewidth=2,
+                    alpha=0.7,
+                )
+            ax.set_xticks([1, 2, 3, 4, 5, 6, 7, 8], minor=False)
 
-    if x_axis == "bitrate":
-        for N, marker in zip(_N_LIST, _MARKERS):
-            indices = [f"fixed_{N}-{2**i}_dedup" for i in _I_LIST]
-            ax.plot(
-                _x_values(df, indices, x_axis),
-                list(df.loc[indices, "cer"]),
-                marker=marker,
-                markersize=3,
-                linewidth=2,
-                alpha=0.7,
+        ax.set_xticklabels([])  # hide x tick labels on the top plot
+        if num == 0:
+            ax.set_ylabel(r"WER [%] $\downarrow$", fontsize=12)
+        if num == 1:
+            ax.set_yticklabels([])  # hide right y tick labels
+        ax.set_ylim(-5, 95)
+        ax.set_yticks([0, 20, 40, 60, 80], minor=False)
+        ax.grid()
+
+    # --- Row 2: WER (<10) ---
+    for num in range(2):
+        model_name = "tacotron2" if num == 0 else "vits"
+        ax = axes[1][num]
+        if x_axis == "bitrate":
+            for N, marker in zip(_N_LIST, _MARKERS):
+                indices = [f"{model_name}-{N}-{2**i}" for i in _I_LIST]
+                bitrate_values = list(df.loc[indices, "bitrate"])
+                wer_values = list(df.loc[indices, "wer"])
+                x, y = [], []
+                for bitrate, wer in zip(bitrate_values, wer_values):
+                    if wer < 10:
+                        x.append(bitrate)
+                        y.append(wer)
+                ax.plot(x, y, marker=marker, markersize=3, linewidth=2, alpha=0.7)
+            ax.set_xlim(0, 600)
+            ax.set_xticks([0, 100, 200, 300, 400, 500, 600], minor=False)
+            ax.set_xticklabels([0, 1, 2, 3, 4, 5, 6], minor=False)
+        else:
+            for N in _N_LIST:
+                indices = [f"{model_name}-{N}-{2**i}" for i in _I_LIST]
+                wer_values = list(df.loc[indices, "wer"])
+                x, y = [], []
+                for i, wer in enumerate(wer_values):
+                    if wer < 10:
+                        x.append(i + 1)
+                        y.append(wer)
+                ax.plot(x, y, marker="o", markersize=2.5, linewidth=2, alpha=0.7)
+            ax.set_xticks([1, 2, 3, 4, 5, 6, 7, 8], minor=False)
+
+        ax.set_xticklabels([])  # hide x tick labels on the middle plot
+        if num == 0:
+            ax.set_ylabel(r"WER [%](<10)", fontsize=12)
+        elif num == 1:
+            ax.set_yticklabels([])  # hide right y tick labels
+        ax.set_ylim(0, 10)
+        ax.set_yticks([0, 2, 4, 6, 8, 10])
+        ax.grid()
+
+    # --- Row 3: speechBERTScore ---
+    for num in range(2):
+        ax = axes[2][num]
+        model_name = "tacotron2" if num == 0 else "vits"
+        if x_axis == "bitrate":
+            for N, marker in zip(_N_LIST, _MARKERS):
+                indices = [f"{model_name}-{N}-{2**i}" for i in _I_LIST]
+                ax.plot(
+                    _x_values(df, indices, x_axis),
+                    list(df.loc[indices, "speechBERTScore"]),
+                    marker=marker,
+                    markersize=3,
+                    linewidth=2,
+                    alpha=0.7,
+                )
+            ax.set_xlim(0, 600)
+            ax.set_xticks([0, 100, 200, 300, 400, 500, 600], minor=False)
+            ax.set_xticklabels([0, 1, 2, 3, 4, 5, 6], minor=False)
+        else:  # x_axis == "K"
+            for N in _N_LIST:
+                indices = [f"{model_name}-{N}-{2**i}" for i in _I_LIST]
+                ax.plot(
+                    _x_values(df, indices, x_axis),
+                    list(df.loc[indices, "speechBERTScore"]),
+                    marker="o",
+                    markersize=2.5,
+                    linewidth=2,
+                    alpha=0.7,
+                )
+            ax.set_xticks([1, 2, 3, 4, 5, 6, 7, 8], minor=False)
+
+        ax.set_xticklabels([])  # hide x tick labels on the top plot
+        if num == 0:
+            ax.set_ylabel(r"SpeechBERTScore $\uparrow$", fontsize=12)
+        if num == 1:
+            ax.set_yticklabels([])  # hide right y tick labels
+        ax.set_ylim(-0.05, 1)
+        ax.set_yticks([0, 0.2, 0.4, 0.6, 0.8, 1], minor=False)
+        ax.grid()
+
+    # --- Row 4: MCD ---
+    for num in range(2):
+        ax = axes[3][num]
+        model_name = "tacotron2" if num == 0 else "vits"
+        if x_axis == "bitrate":
+            for N, marker in zip(_N_LIST, _MARKERS):
+                indices = [f"{model_name}-{N}-{2**i}" for i in _I_LIST]
+                ax.plot(
+                    _x_values(df, indices, x_axis),
+                    list(df.loc[indices, "MCD"]),
+                    marker=marker,
+                    markersize=3,
+                    linewidth=2,
+                    alpha=0.7,
+                )
+            ax.set_xlim(0, 600)
+            ax.set_xticks([0, 100, 200, 300, 400, 500, 600], minor=False)
+            ax.set_xticklabels([0, 1, 2, 3, 4, 5, 6], minor=False)
+        else:  # x_axis == "K"
+            for N in _N_LIST:
+                indices = [f"{model_name}-{N}-{2**i}" for i in _I_LIST]
+                ax.plot(
+                    _x_values(df, indices, x_axis),
+                    list(df.loc[indices, "MCD"]),
+                    marker="o",
+                    markersize=2.5,
+                    linewidth=2,
+                    alpha=0.7,
+                )
+            ax.set_xticks([1, 2, 3, 4, 5, 6, 7, 8], minor=False)
+
+        ax.set_xticklabels([])  # hide x tick labels on the top plot
+        if num == 0:
+            ax.set_ylabel(r"MCD $\downarrow$", fontsize=12)
+        if num == 1:
+            ax.set_yticklabels([])  # hide right y tick labels
+        ax.set_ylim(4.5, 10.5)
+        ax.set_yticks([5, 6, 7, 8, 9, 10], minor=False)
+        ax.grid()
+
+    # --- Row 5: Log_F0_RMSE ---
+    for num in range(2):
+        ax = axes[4][num]
+        model_name = "tacotron2" if num == 0 else "vits"
+        if x_axis == "bitrate":
+            for N, marker in zip(_N_LIST, _MARKERS):
+                indices = [f"{model_name}-{N}-{2**i}" for i in _I_LIST]
+                ax.plot(
+                    _x_values(df, indices, x_axis),
+                    list(df.loc[indices, "Log_F0_RMSE"]),
+                    marker=marker,
+                    markersize=3,
+                    linewidth=2,
+                    alpha=0.7,
+                )
+            ax.set_xlim(0, 600)
+            ax.set_xticks([0, 100, 200, 300, 400, 500, 600], minor=False)
+            ax.set_xticklabels([0, 1, 2, 3, 4, 5, 6], minor=False)
+        else:  # x_axis == "K"
+            for N in _N_LIST:
+                indices = [f"{model_name}-{N}-{2**i}" for i in _I_LIST]
+                ax.plot(
+                    _x_values(df, indices, x_axis),
+                    list(df.loc[indices, "Log_F0_RMSE"]),
+                    marker="o",
+                    markersize=2.5,
+                    linewidth=2,
+                    alpha=0.7,
+                )
+            ax.set_xticks([1, 2, 3, 4, 5, 6, 7, 8], minor=False)
+
+        ax.set_xticklabels([])  # hide x tick labels on the top plot
+        if num == 0:
+            ax.set_ylabel(r"Log_F0_RMSE $\downarrow$", fontsize=12)
+        if num == 1:
+            ax.set_yticklabels([])  # hide right y tick labels
+        ax.set_ylim(-0.05, 1)
+        ax.set_yticks([0, 0.2, 0.4, 0.6, 0.8, 1], minor=False)
+        ax.grid()
+
+    # --- Row 6: UTMOS ---
+    for num in range(2):
+        model_name = "tacotron2" if num == 0 else "vits"
+        ax = axes[5][num]
+        if x_axis == "bitrate":
+            for N, marker in zip(_N_LIST, _MARKERS):
+                indices = [f"{model_name}-{N}-{2**i}" for i in _I_LIST]
+                ax.plot(
+                    _x_values(df, indices, x_axis),
+                    list(df.loc[indices, "UTMOS"]),
+                    marker=marker,
+                    markersize=3,
+                    linewidth=2,
+                    alpha=0.7,
+                )
+            ax.set_xlim(0, 600)
+            ax.set_xticks([0, 100, 200, 300, 400, 500, 600], minor=False)
+            ax.set_xticklabels([0, 1, 2, 3, 4, 5, 6], minor=False)
+            ax.set_xlabel("Bitrate (x100) [bit/s]", fontsize=12)
+        else:
+            for N in _N_LIST:
+                indices = [f"{model_name}-{N}-{2**i}" for i in _I_LIST]
+                ax.plot(
+                    _x_values(df, indices, x_axis),
+                    list(df.loc[indices, "UTMOS"]),
+                    marker="o",
+                    markersize=2.5,
+                    linewidth=2,
+                    alpha=0.7,
+                )
+            ax.set_xticks([1, 2, 3, 4, 5, 6, 7, 8], minor=False)
+            ax.set_xticklabels(
+                [
+                    r"$2^7$",
+                    r"$2^8$",
+                    r"$2^9$",
+                    r"$2^{10}$",
+                    r"$2^{11}$",
+                    r"$2^{12}$",
+                    r"$2^{13}$",
+                    r"$2^{14}$",
+                ],
+                minor=False,
             )
-        ax.set_xlim(0, 600)
-        ax.set_xticks([0, 100, 200, 300, 400, 500, 600], minor=False)
-        ax.set_xticklabels([0, 1, 2, 3, 4, 5, 6], minor=False)
-    else:  # x_axis == "K"
-        for N in _N_LIST:
-            indices = [f"fixed_{N}-{2**i}_dedup" for i in _I_LIST]
-            ax.plot(
-                _x_values(df, indices, x_axis),
-                list(df.loc[indices, "cer"]),
-                marker="o",
-                markersize=2.5,
-                linewidth=2,
-                alpha=0.7,
-            )
-        ax.set_xticks([1, 2, 3, 4, 5, 6, 7, 8], minor=False)
-
-    ax.set_xticklabels([])  # hide x tick labels on the top plot
-    if num == 1:
-        ax.set_yticklabels([])  # hide right y tick labels
-    if num == 0:
-        ax.set_ylabel(r"CER [%] $\downarrow$", fontsize=12)
-    ax.set_ylim(-5, 95)
-    ax.set_yticks([0, 20, 40, 60, 80], minor=False)
-
-    # --- Row 2: CER (<10) ---
-    ax = axes[1][num]
-    ax.grid()
-
-    if x_axis == "bitrate":
-        for N, marker in zip(_N_LIST, _MARKERS):
-            indices = [f"fixed_{N}-{2**i}_dedup" for i in _I_LIST]
-            bitrate_values = list(df.loc[indices, "bitrate"])
-            cer_values = list(df.loc[indices, "cer"])
-            x, y = [], []
-            for bitrate, cer in zip(bitrate_values, cer_values):
-                if cer < 10:
-                    x.append(bitrate)
-                    y.append(cer)
-            ax.plot(x, y, marker=marker, markersize=3, linewidth=2, alpha=0.7)
-        ax.set_xlim(0, 600)
-        ax.set_xticks([0, 100, 200, 300, 400, 500, 600], minor=False)
-        ax.set_xticklabels([0, 1, 2, 3, 4, 5, 6], minor=False)
-    else:
-        for N in _N_LIST:
-            indices = [f"fixed_{N}-{2**i}_dedup" for i in _I_LIST]
-            cer_values = list(df.loc[indices, "cer"])
-            x, y = [], []
-            for i, cer in enumerate(cer_values):
-                if cer < 10:
-                    x.append(i + 1)
-                    y.append(cer)
-            ax.plot(x, y, marker="o", markersize=2.5, linewidth=2, alpha=0.7)
-        ax.set_xticks([1, 2, 3, 4, 5, 6, 7, 8], minor=False)
-
-    ax.set_xticklabels([])  # hide x tick labels on the middle plot
-    if num == 0:
-        ax.set_ylabel(r"CER [%](<10)", fontsize=12)
-    if num == 1:
-        ax.set_yticklabels([])  # hide right y tick labels
-    ax.set_ylim(0, 10)
-    ax.set_yticks([0, 2, 4, 6, 8, 10])
-
-    # --- Row 3: UTMOS ---
-    ax = axes[2][num]
-    ax.grid()
-
-    if x_axis == "bitrate":
-        for N, marker in zip(_N_LIST, _MARKERS):
-            indices = [f"fixed_{N}-{2**i}_dedup" for i in _I_LIST]
-            ax.plot(
-                _x_values(df, indices, x_axis),
-                list(df.loc[indices, "utmos"]),
-                marker=marker,
-                markersize=3,
-                linewidth=2,
-                alpha=0.7,
-            )
-        ax.set_xlim(0, 600)
-        ax.set_xticks([0, 100, 200, 300, 400, 500, 600], minor=False)
-        ax.set_xticklabels([0, 1, 2, 3, 4, 5, 6], minor=False)
+            ax.set_xlabel("Cluster size (K)", fontsize=12)
         if num == 1:
             ax.set_yticklabels([])  # hide right y tick labels
             ax.legend(
@@ -214,48 +401,11 @@ def plot(axes, df: pd.DataFrame, num: int, x_axis: str) -> None:
                 fontsize=8,
                 ncol=2,
             )
-        ax.set_xlabel("Bitrate (x100) [bit/s]", fontsize=12)
-    else:
-        for N in _N_LIST:
-            indices = [f"fixed_{N}-{2**i}_dedup" for i in _I_LIST]
-            ax.plot(
-                _x_values(df, indices, x_axis),
-                list(df.loc[indices, "utmos"]),
-                marker="o",
-                markersize=2.5,
-                linewidth=2,
-                alpha=0.7,
-            )
-        ax.set_xticks([1, 2, 3, 4, 5, 6, 7, 8], minor=False)
-        ax.set_xticklabels(
-            [
-                r"$2^7$",
-                r"$2^8$",
-                r"$2^9$",
-                r"$2^{10}$",
-                r"$2^{11}$",
-                r"$2^{12}$",
-                r"$2^{13}$",
-                r"$2^{14}$",
-            ],
-            minor=False,
-        )
+        ax.set_ylim(1, 5)
+        ax.set_yticks([1, 2, 3, 4, 5], minor=False)
         if num == 0:
-            ax.legend(
-                [f"N={N}" for N in _N_LIST],
-                loc="lower left",
-                bbox_to_anchor=(0, 0),
-                fontsize=8,
-                ncol=2,
-            )
-        if num == 1:
-            ax.set_yticklabels([])  # hide right y tick labels
-        ax.set_xlabel("Cluster size (K)", fontsize=12)
-
-    ax.set_ylim(1, 5)
-    ax.set_yticks([1, 2, 3, 4, 5], minor=False)
-    if num == 0:
-        ax.set_ylabel(r"UTMOS$\uparrow$", fontsize=12)
+            ax.set_ylabel(r"UTMOS$\uparrow$", fontsize=12)
+        ax.grid()
 
 
 def main() -> None:
@@ -275,24 +425,32 @@ def main() -> None:
         help="Path to bitrate.csv (tab-separated).",
     )
     parser.add_argument(
-        "--output",
+        "--error-rates-csv",
         type=str,
-        default=None,
-        help="Output path for the PDF. Default depends on --x-axis.",
+        default="csv/resynthesis_error_rates.csv",
+        help="Path to resynthesis_error_rates.csv (tab-separated).",
+    )
+    parser.add_argument(
+        "--dsmetrics-dir",
+        type=str,
+        default="csv/resynthesis_dsmetrics",
+        help="Directory where resynthesis_dsmetrics are stored.",
     )
     args = parser.parse_args()
 
     # load results of tacotron2 and vits
-    df_t = load_results("tacotron2", bitrate_csv=args.bitrate_csv)
-    df_v = load_results("vits", bitrate_csv=args.bitrate_csv)
-    df_t.to_csv("csv/resynthesis_result.csv", index=True)
-    df_v.to_csv("csv/resynthesis_result-vits.csv", index=True)
+    df = load_results(
+        bitrate_csv=args.bitrate_csv,
+        error_rates_csv=args.error_rates_csv,
+        dsmetrics_dir=args.dsmetrics_dir,
+    )
+    df.to_csv("csv/resynthesis_result.csv", index=True)
 
     # prepare for plotting
     fig, axes = plt.subplots(
-        nrows=3,
+        nrows=6,
         ncols=2,
-        figsize=(4.6, 4.6),
+        figsize=(4.6, 8.4),
         constrained_layout=True,
         dpi=300,
     )
@@ -300,12 +458,9 @@ def main() -> None:
         hspace=0.10
     )  # default is 0.20; larger => more row spacing
 
-    plot(axes, df_t, 0, x_axis=args.x_axis)
-    plot(axes, df_v, 1, x_axis=args.x_axis)
+    plot(axes, df, x_axis=args.x_axis)
 
-    output = args.output
-    if output is None:
-        output = f"./fig/resynthesis_score_{args.x_axis}.pdf"
+    output = f"./fig/resynthesis_score_{args.x_axis}.pdf"
     Path(output).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output)
     print(f"Saved: {output}")
