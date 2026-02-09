@@ -146,10 +146,23 @@ def _x_values(df: pd.DataFrame, indices: list[str], x_axis: str) -> list[float]:
     raise ValueError(f"Unknown x_axis: {x_axis}")
 
 
-def plot(axes, df: pd.DataFrame, x_axis: str) -> None:
+def plot(df: pd.DataFrame, x_axis: str) -> None:
+    # prepare for plotting
+    nrows = 5
+    fig, axes = plt.subplots(
+        nrows=nrows,
+        ncols=2,
+        figsize=(4.0, 6.6),
+        dpi=300,
+    )
+    fig.subplots_adjust(
+        left=0.12, right=0.98, top=0.96, bottom=0.07, hspace=0.16, wspace=0.08
+    )
+
+    ax_id = 0
     # --- Row 1: WER ---
     for num in range(2):
-        ax = axes[0][num]
+        ax = axes[ax_id][num]
         model_name = "tacotron2" if num == 0 else "vits"
         ax.set_title(model_name, fontsize=12)
         if x_axis == "bitrate":
@@ -172,7 +185,7 @@ def plot(axes, df: pd.DataFrame, x_axis: str) -> None:
                 ax.plot(
                     _x_values(df, indices, x_axis),
                     list(df.loc[indices, "wer"]),
-                    marker="o",
+                    marker=marker,
                     markersize=2.5,
                     linewidth=2,
                     alpha=0.7,
@@ -180,18 +193,19 @@ def plot(axes, df: pd.DataFrame, x_axis: str) -> None:
             ax.set_xticks([1, 2, 3, 4, 5, 6, 7, 8], minor=False)
 
         ax.set_xticklabels([])  # hide x tick labels on the top plot
-        if num == 0:
-            ax.set_ylabel(r"WER [%] $\downarrow$", fontsize=12)
-        if num == 1:
-            ax.set_yticklabels([])  # hide right y tick labels
         ax.set_ylim(-5, 95)
         ax.set_yticks([0, 20, 40, 60, 80], minor=False)
+        if num == 0:
+            ax.set_yticklabels([0, 20, 40, 60, 80], fontsize=9)
+        if num == 1:
+            ax.set_yticklabels([])  # hide right y tick labels
         ax.grid()
 
-    # --- Row 2: WER (<10) ---
+    # --- Row 2: WER (<5) ---
+    ax_id += 1
     for num in range(2):
         model_name = "tacotron2" if num == 0 else "vits"
-        ax = axes[1][num]
+        ax = axes[ax_id][num]
         if x_axis == "bitrate":
             for N, marker in zip(_N_LIST, _MARKERS):
                 indices = [f"{model_name}-{N}-{2**i}" for i in _I_LIST]
@@ -199,7 +213,7 @@ def plot(axes, df: pd.DataFrame, x_axis: str) -> None:
                 wer_values = list(df.loc[indices, "wer"])
                 x, y = [], []
                 for bitrate, wer in zip(bitrate_values, wer_values):
-                    if wer < 10:
+                    if wer < 5:
                         x.append(bitrate)
                         y.append(wer)
                 ax.plot(x, y, marker=marker, markersize=3, linewidth=2, alpha=0.7)
@@ -212,64 +226,66 @@ def plot(axes, df: pd.DataFrame, x_axis: str) -> None:
                 wer_values = list(df.loc[indices, "wer"])
                 x, y = [], []
                 for i, wer in enumerate(wer_values):
-                    if wer < 10:
+                    if wer < 5:
                         x.append(i + 1)
                         y.append(wer)
-                ax.plot(x, y, marker="o", markersize=2.5, linewidth=2, alpha=0.7)
+                ax.plot(x, y, marker=marker, markersize=2.5, linewidth=2, alpha=0.7)
             ax.set_xticks([1, 2, 3, 4, 5, 6, 7, 8], minor=False)
 
+        gold_wer = df.loc["gold", "wer"]
+        ax.axhline(gold_wer, color="black", linestyle="--", label="Gold")
         ax.set_xticklabels([])  # hide x tick labels on the middle plot
+        ax.set_ylim(0.5, 5)
+        ax.set_yticks([1, 2, 3, 4, 5])
         if num == 0:
-            ax.set_ylabel(r"WER [%](<10)", fontsize=12)
-        elif num == 1:
+            ax.set_yticklabels([1, 2, 3, 4, 5], fontsize=9)
+        if num == 1:
             ax.set_yticklabels([])  # hide right y tick labels
-        ax.set_ylim(0, 10)
-        ax.set_yticks([0, 2, 4, 6, 8, 10])
         ax.grid()
 
     # --- Row 3: speechBERTScore ---
-    for num in range(2):
-        ax = axes[2][num]
-        model_name = "tacotron2" if num == 0 else "vits"
-        if x_axis == "bitrate":
-            for N, marker in zip(_N_LIST, _MARKERS):
-                indices = [f"{model_name}-{N}-{2**i}" for i in _I_LIST]
-                ax.plot(
-                    _x_values(df, indices, x_axis),
-                    list(df.loc[indices, "speechBERTScore"]),
-                    marker=marker,
-                    markersize=3,
-                    linewidth=2,
-                    alpha=0.7,
-                )
-            ax.set_xlim(0, 600)
-            ax.set_xticks([0, 100, 200, 300, 400, 500, 600], minor=False)
-            ax.set_xticklabels([0, 1, 2, 3, 4, 5, 6], minor=False)
-        else:  # x_axis == "K"
-            for N in _N_LIST:
-                indices = [f"{model_name}-{N}-{2**i}" for i in _I_LIST]
-                ax.plot(
-                    _x_values(df, indices, x_axis),
-                    list(df.loc[indices, "speechBERTScore"]),
-                    marker="o",
-                    markersize=2.5,
-                    linewidth=2,
-                    alpha=0.7,
-                )
-            ax.set_xticks([1, 2, 3, 4, 5, 6, 7, 8], minor=False)
+    # ax_id += 1
+    # for num in range(2):
+    #     ax = axes[ax_id][num]
+    #     model_name = "tacotron2" if num == 0 else "vits"
+    #     if x_axis == "bitrate":
+    #         for N, marker in zip(_N_LIST, _MARKERS):
+    #             indices = [f"{model_name}-{N}-{2**i}" for i in _I_LIST]
+    #             ax.plot(
+    #                 _x_values(df, indices, x_axis),
+    #                 list(df.loc[indices, "speechBERTScore"]),
+    #                 marker=marker,
+    #                 markersize=3,
+    #                 linewidth=2,
+    #                 alpha=0.7,
+    #             )
+    #         ax.set_xlim(0, 600)
+    #         ax.set_xticks([0, 100, 200, 300, 400, 500, 600], minor=False)
+    #         ax.set_xticklabels([0, 1, 2, 3, 4, 5, 6], minor=False)
+    #     else:  # x_axis == "K"
+    #         for N in _N_LIST:
+    #             indices = [f"{model_name}-{N}-{2**i}" for i in _I_LIST]
+    #             ax.plot(
+    #                 _x_values(df, indices, x_axis),
+    #                 list(df.loc[indices, "speechBERTScore"]),
+    #                 marker=marker,
+    #                 markersize=2.5,
+    #                 linewidth=2,
+    #                 alpha=0.7,
+    #             )
+    #         ax.set_xticks([1, 2, 3, 4, 5, 6, 7, 8], minor=False)
 
-        ax.set_xticklabels([])  # hide x tick labels on the top plot
-        if num == 0:
-            ax.set_ylabel(r"SpeechBERTScore $\uparrow$", fontsize=12)
-        if num == 1:
-            ax.set_yticklabels([])  # hide right y tick labels
-        ax.set_ylim(-0.05, 1)
-        ax.set_yticks([0, 0.2, 0.4, 0.6, 0.8, 1], minor=False)
-        ax.grid()
+    #     ax.set_xticklabels([])  # hide x tick labels on the top plot
+    #     if num == 1:
+    #         ax.set_yticklabels([])  # hide right y tick labels
+    #     ax.set_ylim(-0.05, 1)
+    #     ax.set_yticks([0, 0.2, 0.4, 0.6, 0.8, 1], minor=False)
+    #     ax.grid()
 
     # --- Row 4: MCD ---
+    ax_id += 1
     for num in range(2):
-        ax = axes[3][num]
+        ax = axes[ax_id][num]
         model_name = "tacotron2" if num == 0 else "vits"
         if x_axis == "bitrate":
             for N, marker in zip(_N_LIST, _MARKERS):
@@ -291,7 +307,7 @@ def plot(axes, df: pd.DataFrame, x_axis: str) -> None:
                 ax.plot(
                     _x_values(df, indices, x_axis),
                     list(df.loc[indices, "MCD"]),
-                    marker="o",
+                    marker=marker,
                     markersize=2.5,
                     linewidth=2,
                     alpha=0.7,
@@ -299,17 +315,18 @@ def plot(axes, df: pd.DataFrame, x_axis: str) -> None:
             ax.set_xticks([1, 2, 3, 4, 5, 6, 7, 8], minor=False)
 
         ax.set_xticklabels([])  # hide x tick labels on the top plot
-        if num == 0:
-            ax.set_ylabel(r"MCD [dB] $\downarrow$", fontsize=12)
-        if num == 1:
-            ax.set_yticklabels([])  # hide right y tick labels
         ax.set_ylim(4.5, 10.5)
         ax.set_yticks([5, 6, 7, 8, 9, 10], minor=False)
+        if num == 0:
+            ax.set_yticklabels([5, 6, 7, 8, 9, 10], fontsize=9)
+        if num == 1:
+            ax.set_yticklabels([])  # hide right y tick labels
         ax.grid()
 
     # --- Row 5: Log_F0_RMSE ---
+    ax_id += 1
     for num in range(2):
-        ax = axes[4][num]
+        ax = axes[ax_id][num]
         model_name = "tacotron2" if num == 0 else "vits"
         if x_axis == "bitrate":
             for N, marker in zip(_N_LIST, _MARKERS):
@@ -331,7 +348,7 @@ def plot(axes, df: pd.DataFrame, x_axis: str) -> None:
                 ax.plot(
                     _x_values(df, indices, x_axis),
                     list(df.loc[indices, "Log_F0_RMSE"]),
-                    marker="o",
+                    marker=marker,
                     markersize=2.5,
                     linewidth=2,
                     alpha=0.7,
@@ -339,24 +356,28 @@ def plot(axes, df: pd.DataFrame, x_axis: str) -> None:
             ax.set_xticks([1, 2, 3, 4, 5, 6, 7, 8], minor=False)
 
         ax.set_xticklabels([])  # hide x tick labels on the top plot
+        ax.set_ylim(-0.05, 1.05)
+        ax.set_yticks([0, 0.2, 0.4, 0.6, 0.8, 1], minor=False)
         if num == 0:
-            ax.set_ylabel(r"Log_F0_RMSE [cent] $\downarrow$", fontsize=12)
+            ax.set_yticklabels([0, 0.2, 0.4, 0.6, 0.8, 1], fontsize=9)
         if num == 1:
             ax.set_yticklabels([])  # hide right y tick labels
-        ax.set_ylim(-0.05, 1)
-        ax.set_yticks([0, 0.2, 0.4, 0.6, 0.8, 1], minor=False)
         ax.grid()
 
     # --- Row 6: UTMOS ---
+    ax_id += 1
     for num in range(2):
         model_name = "tacotron2" if num == 0 else "vits"
-        ax = axes[5][num]
+        ax = axes[ax_id][num]
+        gold_utmos = df.loc["gold", "UTMOS"]
+        ax.axhline(gold_utmos, color="black", linestyle="--", label="Gold")
         if x_axis == "bitrate":
             for N, marker in zip(_N_LIST, _MARKERS):
                 indices = [f"{model_name}-{N}-{2**i}" for i in _I_LIST]
                 ax.plot(
                     _x_values(df, indices, x_axis),
                     list(df.loc[indices, "UTMOS"]),
+                    label=f"N={N}",
                     marker=marker,
                     markersize=3,
                     linewidth=2,
@@ -365,14 +386,14 @@ def plot(axes, df: pd.DataFrame, x_axis: str) -> None:
             ax.set_xlim(0, 600)
             ax.set_xticks([0, 100, 200, 300, 400, 500, 600], minor=False)
             ax.set_xticklabels([0, 1, 2, 3, 4, 5, 6], minor=False)
-            ax.set_xlabel("Bitrate (x100) [bit/s]", fontsize=12)
+            ax.set_xlabel("Bitrate (x100) [bit/s]", fontsize=10)
         else:
             for N in _N_LIST:
                 indices = [f"{model_name}-{N}-{2**i}" for i in _I_LIST]
                 ax.plot(
                     _x_values(df, indices, x_axis),
                     list(df.loc[indices, "UTMOS"]),
-                    marker="o",
+                    marker=marker,
                     markersize=2.5,
                     linewidth=2,
                     alpha=0.7,
@@ -392,20 +413,51 @@ def plot(axes, df: pd.DataFrame, x_axis: str) -> None:
                 minor=False,
             )
             ax.set_xlabel("Cluster size (K)", fontsize=12)
-        if num == 1:
-            ax.set_yticklabels([])  # hide right y tick labels
-            ax.legend(
-                [f"N={N}" for N in _N_LIST],
-                loc="lower right",
-                bbox_to_anchor=(1, 0),
+        if num == 0:
+            bbox = ax.get_position()
+            hans, labs = ax.get_legend_handles_labels()
+            fig.legend(
+                handles=hans,
+                labels=labs,
+                loc="lower left",
+                bbox_to_anchor=(bbox.x0, bbox.y0),
                 fontsize=8,
-                ncol=2,
+                ncol=3,
             )
         ax.set_ylim(1, 5)
         ax.set_yticks([1, 2, 3, 4, 5], minor=False)
         if num == 0:
-            ax.set_ylabel(r"UTMOS$\uparrow$", fontsize=12)
+            ax.set_yticklabels([1, 2, 3, 4, 5], fontsize=9)
+        if num == 1:
+            ax.set_yticklabels([])  # hide right y tick labels
         ax.grid()
+
+    row_labels = [
+        r"WER[%]$\downarrow$",
+        r"WER[%] (<5)",
+        r"MCD[dB]$\downarrow$",
+        r"LogF0 RMSE[cent]$\downarrow$",  # ←後述
+        r"UTMOS$\uparrow$",
+    ]
+
+    for r, lab in enumerate(row_labels):
+        axL = axes[r, 0]
+        bb = axL.get_position()  # figure座標
+        y = (bb.y0 + bb.y1) / 2
+        fig.text(
+            bb.x0 - 0.09,
+            y,
+            lab,  # ← x を固定できるのでガタつかない
+            va="center",
+            ha="center",
+            rotation=90,
+            fontsize=10,
+        )
+
+    output = f"./fig/resynthesis_score_{x_axis}.pdf"
+    Path(output).parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output)
+    print(f"Saved: {output}")
 
 
 def main() -> None:
@@ -445,25 +497,7 @@ def main() -> None:
         dsmetrics_dir=args.dsmetrics_dir,
     )
     df.to_csv("csv/resynthesis_result.csv", index=True)
-
-    # prepare for plotting
-    fig, axes = plt.subplots(
-        nrows=6,
-        ncols=2,
-        figsize=(4.6, 8.4),
-        constrained_layout=True,
-        dpi=300,
-    )
-    fig.get_layout_engine().set(
-        hspace=0.10
-    )  # default is 0.20; larger => more row spacing
-
-    plot(axes, df, x_axis=args.x_axis)
-
-    output = f"./fig/resynthesis_score_{args.x_axis}.pdf"
-    Path(output).parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(output)
-    print(f"Saved: {output}")
+    plot(df, x_axis=args.x_axis)
 
 
 if __name__ == "__main__":
