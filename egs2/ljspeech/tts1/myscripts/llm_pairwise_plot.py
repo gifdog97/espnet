@@ -1,5 +1,4 @@
 import csv
-from pathlib import Path
 
 import matplotlib as mpl
 import matplotlib.font_manager as fm
@@ -25,17 +24,20 @@ plt.rcParams["font.family"] = font_prop.get_name()
 
 
 def extract_valid_settings(tts_model: str):
-    if tts_model == "tacotron2":
-        continuation_results = "csv/continuation_result.tsv"
-    elif tts_model == "vits":
-        continuation_results = "csv/continuation_result-vits.tsv"
-    with open(Path(continuation_results)) as f:
-        reader = csv.DictReader(f, delimiter="\t")
-        valid_settings = [
-            (f"{row['setting']}-{row['temperature']}", row["bitrate"])
-            for row in reader
-            if row["temperature"] != "None"
-        ]
+    valid_settings = []
+    with open("csv/continuation_result.csv") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            if not row["distance"]:
+                continue
+            setting = row["setting"]
+            if not setting.startswith(tts_model):
+                continue
+            temperature = row["temperature"]
+            bitrate = row["bitrate"]
+            valid_settings.append(
+                (f"{setting.split('-', 1)[1]}-{temperature}", bitrate)
+            )
     return valid_settings
 
 
@@ -62,13 +64,13 @@ def main():
     fig, axes = plt.subplots(
         nrows=1,
         ncols=2,
-        figsize=(12.1, 5.5),
+        figsize=(8.2, 3.8),
         constrained_layout=True,
         dpi=300,
     )
     fig.get_layout_engine().set(hspace=0.10)  # ← 0.20 が既定。大きいほど行間が広がる
     ax = axes[0]
-    ax.set_title("Tacotron2", fontsize=20)
+    ax.set_title("tacotron2", fontsize=16)
     data = []
     for setting_X, _ in valid_settings_t:
         heatmap_row = []
@@ -100,15 +102,13 @@ def main():
     )
     ax.axhline(6, color="black", linewidth=2)
     ax.axhline(6 + 5, color="black", linewidth=2)
-    ax.axhline(6 + 5 + 7, color="black", linewidth=2)
-    ax.axhline(6 + 5 + 7 + 7, color="black", linewidth=2)
+    ax.axhline(6 + 5 + 6, color="black", linewidth=2)
     ax.axvline(6, color="black", linewidth=2)
     ax.axvline(6 + 5, color="black", linewidth=2)
-    ax.axvline(6 + 5 + 7, color="black", linewidth=2)
-    ax.axvline(6 + 5 + 7 + 7, color="black", linewidth=2)
+    ax.axvline(6 + 5 + 6, color="black", linewidth=2)
 
     ax = axes[1]
-    ax.set_title("VITS", fontsize=20)
+    ax.set_title("vits", fontsize=16)
     data = []
     for setting_X, _ in valid_settings_v:
         heatmap_row = []
@@ -138,13 +138,11 @@ def main():
         ],
     )
     cbar = ax.collections[0].colorbar
-    cbar.ax.tick_params(labelsize=14)
-    ax.axhline(8, color="black", linewidth=2)
-    ax.axhline(8 + 8, color="black", linewidth=2)
-    ax.axhline(8 + 8 + 8, color="black", linewidth=2)
-    ax.axvline(8, color="black", linewidth=2)
-    ax.axvline(8 + 8, color="black", linewidth=2)
-    ax.axvline(8 + 8 + 8, color="black", linewidth=2)
+    cbar.ax.tick_params(labelsize=10)
+    ax.axhline(7, color="black", linewidth=2)
+    ax.axhline(7 + 7, color="black", linewidth=2)
+    ax.axvline(7, color="black", linewidth=2)
+    ax.axvline(7 + 7, color="black", linewidth=2)
 
     plt.savefig("fig/pairwise_heatmap.pdf")
 
