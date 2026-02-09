@@ -180,13 +180,13 @@ def plot(df: pd.DataFrame, x_axis: str) -> None:
             ax.set_xticks([0, 100, 200, 300, 400, 500, 600], minor=False)
             ax.set_xticklabels([0, 1, 2, 3, 4, 5, 6], minor=False)
         else:  # x_axis == "K"
-            for N in _N_LIST:
+            for N, marker in zip(_N_LIST, _MARKERS):
                 indices = [f"{model_name}-{N}-{2**i}" for i in _I_LIST]
                 ax.plot(
                     _x_values(df, indices, x_axis),
                     list(df.loc[indices, "wer"]),
                     marker=marker,
-                    markersize=2.5,
+                    markersize=3,
                     linewidth=2,
                     alpha=0.7,
                 )
@@ -221,7 +221,7 @@ def plot(df: pd.DataFrame, x_axis: str) -> None:
             ax.set_xticks([0, 100, 200, 300, 400, 500, 600], minor=False)
             ax.set_xticklabels([0, 1, 2, 3, 4, 5, 6], minor=False)
         else:
-            for N in _N_LIST:
+            for N, marker in zip(_N_LIST, _MARKERS):
                 indices = [f"{model_name}-{N}-{2**i}" for i in _I_LIST]
                 wer_values = list(df.loc[indices, "wer"])
                 x, y = [], []
@@ -229,7 +229,7 @@ def plot(df: pd.DataFrame, x_axis: str) -> None:
                     if wer < 5:
                         x.append(i + 1)
                         y.append(wer)
-                ax.plot(x, y, marker=marker, markersize=2.5, linewidth=2, alpha=0.7)
+                ax.plot(x, y, marker=marker, markersize=3, linewidth=2, alpha=0.7)
             ax.set_xticks([1, 2, 3, 4, 5, 6, 7, 8], minor=False)
 
         gold_wer = df.loc["gold", "wer"]
@@ -263,13 +263,13 @@ def plot(df: pd.DataFrame, x_axis: str) -> None:
     #         ax.set_xticks([0, 100, 200, 300, 400, 500, 600], minor=False)
     #         ax.set_xticklabels([0, 1, 2, 3, 4, 5, 6], minor=False)
     #     else:  # x_axis == "K"
-    #         for N in _N_LIST:
+    #         for N, marker in zip(_N_LIST, _MARKERS):
     #             indices = [f"{model_name}-{N}-{2**i}" for i in _I_LIST]
     #             ax.plot(
     #                 _x_values(df, indices, x_axis),
     #                 list(df.loc[indices, "speechBERTScore"]),
     #                 marker=marker,
-    #                 markersize=2.5,
+    #                 markersize=3,
     #                 linewidth=2,
     #                 alpha=0.7,
     #             )
@@ -302,13 +302,13 @@ def plot(df: pd.DataFrame, x_axis: str) -> None:
             ax.set_xticks([0, 100, 200, 300, 400, 500, 600], minor=False)
             ax.set_xticklabels([0, 1, 2, 3, 4, 5, 6], minor=False)
         else:  # x_axis == "K"
-            for N in _N_LIST:
+            for N, marker in zip(_N_LIST, _MARKERS):
                 indices = [f"{model_name}-{N}-{2**i}" for i in _I_LIST]
                 ax.plot(
                     _x_values(df, indices, x_axis),
                     list(df.loc[indices, "MCD"]),
                     marker=marker,
-                    markersize=2.5,
+                    markersize=3,
                     linewidth=2,
                     alpha=0.7,
                 )
@@ -343,13 +343,13 @@ def plot(df: pd.DataFrame, x_axis: str) -> None:
             ax.set_xticks([0, 100, 200, 300, 400, 500, 600], minor=False)
             ax.set_xticklabels([0, 1, 2, 3, 4, 5, 6], minor=False)
         else:  # x_axis == "K"
-            for N in _N_LIST:
+            for N, marker in zip(_N_LIST, _MARKERS):
                 indices = [f"{model_name}-{N}-{2**i}" for i in _I_LIST]
                 ax.plot(
                     _x_values(df, indices, x_axis),
                     list(df.loc[indices, "Log_F0_RMSE"]),
                     marker=marker,
-                    markersize=2.5,
+                    markersize=3,
                     linewidth=2,
                     alpha=0.7,
                 )
@@ -388,13 +388,14 @@ def plot(df: pd.DataFrame, x_axis: str) -> None:
             ax.set_xticklabels([0, 1, 2, 3, 4, 5, 6], minor=False)
             ax.set_xlabel("Bitrate (x100) [bit/s]", fontsize=10)
         else:
-            for N in _N_LIST:
+            for N, marker in zip(_N_LIST, _MARKERS):
                 indices = [f"{model_name}-{N}-{2**i}" for i in _I_LIST]
                 ax.plot(
                     _x_values(df, indices, x_axis),
                     list(df.loc[indices, "UTMOS"]),
+                    label=f"N={N}",
                     marker=marker,
-                    markersize=2.5,
+                    markersize=3,
                     linewidth=2,
                     alpha=0.7,
                 )
@@ -412,7 +413,7 @@ def plot(df: pd.DataFrame, x_axis: str) -> None:
                 ],
                 minor=False,
             )
-            ax.set_xlabel("Cluster size (K)", fontsize=12)
+            ax.set_xlabel("Cluster size (K)", fontsize=10)
         if num == 0:
             bbox = ax.get_position()
             hans, labs = ax.get_legend_handles_labels()
