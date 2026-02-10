@@ -1,5 +1,5 @@
 import csv
-import os
+import itertools
 import random
 import re
 import time
@@ -24,7 +24,9 @@ client = OpenAI(
     base_url=api_base,
 )
 
-CONTINUATION_RESULTS = "/work/gk77/k77035/espnet/egs2/ljspeech/tts1/myscripts/csv/continuation_result-vits.tsv"
+CONTINUATION_RESULTS = (
+    "/work/gk77/k77035/espnet/egs2/ljspeech/tts1/myscripts/csv/continuation_result.csv"
+)
 PROMPT_TEMPLATE = Template("""
 # Instructions
 
@@ -93,7 +95,8 @@ def calculate_score(
     setting_X = setting_transcriptions_X["setting"]
     setting_Y = setting_transcriptions_Y["setting"]
     print(f"{setting_X} vs {setting_Y}")
-    os.makedirs(f"pairwise/vits/{setting_X}_vs_{setting_Y}", exist_ok=True)
+    output_dir = Path(f"pairwise/{setting_X}_vs_{setting_Y}")
+    output_dir.mkdir(parents=True, exist_ok=True)
     transcriptions_X = setting_transcriptions_X["transcription"]
     transcriptions_Y = setting_transcriptions_Y["transcription"]
     score_map = {"A>>B": 1, "A>B": 0.5, "A=B": 0, "B>A": -0.5, "B>>A": -1}
@@ -116,12 +119,12 @@ def calculate_score(
             )
         completion = with_retry(
             client.chat.completions.create,
-            model="gpt-4.1-mini",
+            model="GPT-4.1-mini",
             messages=[{"role": "user", "content": prompt}],
         )
         completion_text = completion.choices[0].message.content
         assert isinstance(completion_text, str)
-        with open(f"pairwise/vits/{setting_X}_vs_{setting_Y}/{wav_id}.txt", "w") as f:
+        with (output_dir / f"{wav_id}.txt").open("w") as f:
             if ab:
                 f.write(f"Text A ({setting_X})\n")
                 f.write(transcription_x + "\n")
@@ -144,42 +147,54 @@ def calculate_score(
         "setting_X": setting_X,
         "setting_Y": setting_Y,
         "total_count": int(total_count),
-        "total_score": int(total_score),
+        "total_score": float(total_score),
         "average_score": float(total_score / total_count),
     }
 
 
 def main():
     with open(Path(CONTINUATION_RESULTS), "r") as f:
-        reader = csv.DictReader(f, delimiter="\t")
+        reader = csv.DictReader(f)
         valid_settings = [
             f"{row['setting']}-{row['temperature']}"
             for row in reader
-            if row["temperature"] != "None"
+            if row["temperature"] != ""
         ]
     results = []
-    with ThreadPoolExecutor(max_workers=8) as executor:  # 同時に8リクエストまで
+    max_workers = 8
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = []
-        for setting_X, setting_Y in [
-            ("40-256-0.6", "120-8192-0.6"),
-        ]:
-            # itertools.product(valid_settings, repeat=2): # CHANGE
+        future_to_pair = {}
+        # 全設定をやる場合:
+        for setting_X, setting_Y in itertools.product(valid_settings, repeat=2):
+            # アドホックに一部をリトライしたい場合:
+            # for setting_X, setting_Y in [
+            #     ("40-256-0.6", "120-8192-0.6"),
+            # ]:
+            model_X, nkt_X = setting_X.split("-", 1)
+            model_Y, nkt_Y = setting_Y.split("-", 1)
+            if model_X == model_Y:
+                # 今回は同じモデル同士の比較はスキップ
+                continue
             transcription_X = extract_transcriptions(
-                Path(f"transcription/fixed_{setting_X}.txt")  # CHANGE
+                Path(f"transcription/{model_X}/fixed_{nkt_X}.txt")  # CHANGE
             )
             transcription_Y = extract_transcriptions(
-                Path(f"transcription/fixed_{setting_Y}.txt")  # CHANGE
+                Path(f"transcription/{model_Y}/fixed_{nkt_Y}.txt")  # CHANGE
             )
             dict_X = {"setting": setting_X, "transcription": transcription_X}
             dict_Y = {"setting": setting_Y, "transcription": transcription_Y}
-            futures.append(executor.submit(calculate_score, dict_X, dict_Y))
+            future = executor.submit(calculate_score, dict_X, dict_Y)
+            future_to_pair[future] = (setting_X, setting_Y)
+            futures.append(future)
         for future in as_completed(futures):
+            setting_X, setting_Y = future_to_pair[future]
             try:
                 results.append(future.result())
             except Exception as e:
-                print(f"Error occurred: {e}")
+                print(f"Error for pair ({setting_X}, {setting_Y}): {e}")
                 traceback.print_exc()
-    with open("pairwise/result_summary-rest.csv", "w") as f:
+    with open("pairwise/result_summary-crossmodel.csv", "w") as f:
         writer = csv.DictWriter(f, fieldnames=results[0].keys())
         writer.writeheader()
         for result in results:
