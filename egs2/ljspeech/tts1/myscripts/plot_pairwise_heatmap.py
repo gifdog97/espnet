@@ -56,11 +56,7 @@ def extract_results(tts_model: str):
     return results_dict
 
 
-def main():
-    valid_settings_t = extract_valid_settings("tacotron2")
-    valid_settings_v = extract_valid_settings("vits")
-    results_dict_t = extract_results("tacotron2")
-    results_dict_v = extract_results("vits")
+def plot_pairwise(data_tacotron2, data_vits, valid_settings_t, valid_settings_v):
     fig, axes = plt.subplots(
         nrows=1,
         ncols=2,
@@ -71,23 +67,12 @@ def main():
     fig.get_layout_engine().set(hspace=0.10)  # ← 0.20 が既定。大きいほど行間が広がる
     ax = axes[0]
     ax.set_title("tacotron2", fontsize=16)
-    data = []
-    for setting_X, _ in valid_settings_t:
-        heatmap_row = []
-        for setting_Y, _ in valid_settings_t:
-            score = results_dict_t.get(f"{setting_X}_{setting_Y}")
-            if score is None:
-                heatmap_row.append(0)
-                continue
-            heatmap_row.append(float(score))
-        data.append(heatmap_row)
-    data = np.array(data)
     # 0を白、負を赤、正を青にするカラーマップ
     cmap = plt.cm.bwr  # blue-white-red
-    min_t, max_t = data.min(), data.max()
+    min_t, max_t = data_tacotron2.min(), data_tacotron2.max()
     norm = TwoSlopeNorm(vmin=min_t, vcenter=0, vmax=max_t)
     sns.heatmap(
-        data,
+        data_tacotron2,
         ax=ax,
         cmap=cmap,
         norm=norm,
@@ -107,24 +92,14 @@ def main():
     ax.axvline(6 + 5, color="black", linewidth=2)
     ax.axvline(6 + 5 + 6, color="black", linewidth=2)
 
+    # vitsのヒートマップ
     ax = axes[1]
     ax.set_title("vits", fontsize=16)
-    data = []
-    for setting_X, _ in valid_settings_v:
-        heatmap_row = []
-        for setting_Y, _ in valid_settings_v:
-            score = results_dict_v.get(f"{setting_X}_{setting_Y}")
-            if score is None:
-                heatmap_row.append(0)
-                continue
-            heatmap_row.append(float(score))
-        data.append(heatmap_row)
-    data = np.array(data)
     # 0を白、負を赤、正を青にするカラーマップ
     cmap = plt.cm.bwr  # blue-white-red
     norm = TwoSlopeNorm(vmin=min_t, vcenter=0, vmax=max_t)
     sns.heatmap(
-        data,
+        data_vits,
         ax=ax,
         cmap=cmap,
         norm=norm,
@@ -145,6 +120,45 @@ def main():
     ax.axvline(7 + 7, color="black", linewidth=2)
 
     plt.savefig("fig/pairwise_heatmap.pdf")
+    return data_tacotron2, data_vits
+
+
+def extract_data(valid_settings_t, valid_settings_v, results_dict_t, results_dict_v):
+    data_tacotron2 = []
+    for setting_X, _ in valid_settings_t:
+        heatmap_row = []
+        for setting_Y, _ in valid_settings_t:
+            score = results_dict_t.get(f"{setting_X}_{setting_Y}")
+            if score is None:
+                heatmap_row.append(0)
+                continue
+            heatmap_row.append(float(score))
+        data_tacotron2.append(heatmap_row)
+    data_tacotron2 = np.array(data_tacotron2)
+    data_vits = []
+    for setting_X, _ in valid_settings_v:
+        heatmap_row = []
+        for setting_Y, _ in valid_settings_v:
+            score = results_dict_v.get(f"{setting_X}_{setting_Y}")
+            if score is None:
+                heatmap_row.append(0)
+                continue
+            heatmap_row.append(float(score))
+        data_vits.append(heatmap_row)
+    data_vits = np.array(data_vits)
+    return data_tacotron2, data_vits
+
+
+def main():
+    valid_settings_t = extract_valid_settings("tacotron2")
+    valid_settings_v = extract_valid_settings("vits")
+    results_dict_t = extract_results("tacotron2")
+    results_dict_v = extract_results("vits")
+
+    data_tacotron2, data_vits = extract_data(
+        valid_settings_t, valid_settings_v, results_dict_t, results_dict_v
+    )
+    plot_pairwise(data_tacotron2, data_vits, valid_settings_t, valid_settings_v)
 
 
 if __name__ == "__main__":
