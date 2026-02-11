@@ -386,7 +386,7 @@ def plot(df: pd.DataFrame, x_axis: str) -> None:
             ax.set_xlim(0, 600)
             ax.set_xticks([0, 100, 200, 300, 400, 500, 600], minor=False)
             ax.set_xticklabels([0, 1, 2, 3, 4, 5, 6], minor=False)
-            ax.set_xlabel("Bitrate (x100) [bit/s]", fontsize=10)
+            ax.set_xlabel("Bitrate (x100) [bps]", fontsize=10)
         else:
             for N, marker in zip(_N_LIST, _MARKERS):
                 indices = [f"{model_name}-{N}-{2**i}" for i in _I_LIST]
