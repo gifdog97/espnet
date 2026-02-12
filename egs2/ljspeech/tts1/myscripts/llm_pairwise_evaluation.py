@@ -137,7 +137,7 @@ def calculate_score(
                 f.write(transcription_x + "\n")
             f.write("\n")
             f.write(completion_text)
-        judge = re.findall(r"\[\[(.*?)\]\]", completion_text.split("\n")[-1])[0]
+        judge = re.findall(r"\[\[(.*?)\]\]", completion_text.strip().split("\n")[-1])[0]
         if ab:
             score = score_map[judge]
         else:
@@ -165,12 +165,12 @@ def main():
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = []
         future_to_pair = {}
+        # アドホックに一部をリトライしたい場合:
+        # for setting_X, setting_Y in [
+        #     ("tacotron2-40-256-0.6", "vits-120-8192-0.6"),
+        # ]:
         # 全設定をやる場合:
         for setting_X, setting_Y in itertools.product(valid_settings, repeat=2):
-            # アドホックに一部をリトライしたい場合:
-            # for setting_X, setting_Y in [
-            #     ("40-256-0.6", "120-8192-0.6"),
-            # ]:
             model_X, nkt_X = setting_X.split("-", 1)
             model_Y, nkt_Y = setting_Y.split("-", 1)
             if model_X == model_Y:
@@ -194,7 +194,7 @@ def main():
             except Exception as e:
                 print(f"Error for pair ({setting_X}, {setting_Y}): {e}")
                 traceback.print_exc()
-    with open("pairwise/result_summary-crossmodel.csv", "w") as f:
+    with open("pairwise/result_summary.csv", "w") as f:
         writer = csv.DictWriter(f, fieldnames=results[0].keys())
         writer.writeheader()
         for result in results:
