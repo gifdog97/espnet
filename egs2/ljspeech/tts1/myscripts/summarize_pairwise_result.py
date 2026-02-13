@@ -43,21 +43,14 @@ def write_summary(pairwise_dir: Path):
 
 
 def main():
-    count = 0
     for pairwise_dir in PAIRWISE_DIR.iterdir():
         if "_vs_" not in pairwise_dir.name:
-            continue
-        # 今だけ、tacotron vs. vits と vits vs. tacotron は無視
-        # tacotron vs tacotron や vits vs vits だけ処理
-        if pairwise_dir.name.count("vits") == 1:
             continue
         if (pairwise_dir / "summary.txt").exists():
             print(f"summary.txt already exists in {pairwise_dir}, skipping...")
             continue
         print(pairwise_dir)
         write_summary(pairwise_dir)
-        count += 1
-        print(f"{count} / {840 - 510}")
 
 
 if __name__ == "__main__":

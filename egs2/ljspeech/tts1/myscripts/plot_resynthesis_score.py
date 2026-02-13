@@ -3,6 +3,8 @@ import csv
 import re
 from pathlib import Path
 
+from myutils import parse_bitrate
+
 try:
     import japanize_matplotlib  # noqa: F401
 except ModuleNotFoundError:
@@ -25,29 +27,6 @@ font_prop = fm.FontProperties(fname=font_path)
 
 # グローバル設定に反映（全体に適用）
 plt.rcParams["font.family"] = font_prop.get_name()
-
-
-def parse_bitrate(file_path: str) -> dict[str, float]:
-    """
-    Input (tab-separated):
-                N=20    N=40    ... N=280
-        K=128   194.3   152.3   ...
-        ...
-    Returns:
-        {"{N}-{K}": bitrate_value, ...}
-    """
-    with open(file_path, "r") as f:
-        lines = f.readlines()
-    Ns = [N_val.split("=")[1] for N_val in lines[0].strip().split("\t")]
-    bitrate_dict: dict[str, float] = {}
-    for line in lines[1:]:
-        parts = line.strip().split("\t")
-        K = parts[0].split("=")[1]
-        values = list(map(float, parts[1:]))
-        for N, value in zip(Ns, values):
-            key = f"{N}-{K}"
-            bitrate_dict[key] = value
-    return bitrate_dict
 
 
 def parse_error_rates(error_rates_csv: str) -> dict[str, dict[str, float]]:

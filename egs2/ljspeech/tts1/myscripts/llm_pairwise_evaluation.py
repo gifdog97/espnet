@@ -173,9 +173,6 @@ def main():
         for setting_X, setting_Y in itertools.product(valid_settings, repeat=2):
             model_X, nkt_X = setting_X.split("-", 1)
             model_Y, nkt_Y = setting_Y.split("-", 1)
-            if model_X == model_Y:
-                # 今回は同じモデル同士の比較はスキップ
-                continue
             transcription_X = extract_transcriptions(
                 Path(f"transcription/{model_X}/fixed_{nkt_X}.txt")  # CHANGE
             )
