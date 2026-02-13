@@ -34,7 +34,7 @@ def plot_score(
         dpi=300,
     )
     fig.subplots_adjust(
-        left=0.12, right=0.98, top=0.88, bottom=0.20, hspace=0.16, wspace=0.08
+        left=0.12, right=0.98, top=0.88, bottom=0.22, hspace=0.16, wspace=0.08
     )
     for model, setting_scores in score_dict.items():
         if model == "tacotron2":
@@ -96,10 +96,10 @@ def main():
     for pairwise_dir in PAIRWISE_DIR.iterdir():
         if "_vs_" not in pairwise_dir.name:
             continue
-        # 一旦 tacotron vs. vits と vits vs. tacotron は無視
+        # tacotron vs. vits と vits vs. tacotron を無視
         # tacotron vs tacotron や vits vs vits だけ処理
-        if pairwise_dir.name.count("vits") == 1:
-            continue
+        # if pairwise_dir.name.count("vits") == 1:
+        #     continue
         # {model}-{N}-{K}-{temperature}_vs_{model}-{N}-{K}-{temperature}
         setting_X = pairwise_dir.name.split("_vs_")[0]
         model, N, K, _ = setting_X.split("-")
