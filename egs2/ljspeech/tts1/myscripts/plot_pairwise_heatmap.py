@@ -32,7 +32,7 @@ plt.rcParams["font.family"] = font_prop.get_name()
 def plot_pairwise(
     score_dict: Mapping[str, Mapping[str, Mapping[str, Any]]],
     *,
-    figsize: tuple[float, float] = (7, 6.2),
+    figsize: tuple[float, float] = (6.8, 6.2),
     cmap: str = "bwr",
     vmin: float | None = None,
     vmax: float | None = None,
@@ -219,12 +219,12 @@ def plot_pairwise(
     divider = make_axes_locatable(ax)
 
     # size が「横幅」だけを決める
-    cax = divider.append_axes("right", size="2.5%", pad=0.35)
+    cax = divider.append_axes("right", size="2.5%", pad=0.3)
 
     cbar = fig.colorbar(im, ax=ax, cax=cax)
-    ticks = np.arange(-0.4, 0.4 + 1e-9, 0.05)
+    ticks = np.arange(-0.4, 0.4 + 1e-9, 0.1)
     cbar.set_ticks(ticks)
-    cbar.ax.tick_params(labelsize=9)
+    cbar.ax.tick_params(labelsize=8)
 
     # bracket を外側に出すので余白を少し増やす
     fig.tight_layout()
