@@ -134,4 +134,5 @@ egs2/ljspeech/tts1/myscripts/csv/continuation_score
 egs2/ljspeech/tts1/myscripts/csv/resynthesis_dsmetrics
 egs2/ljspeech/tts1/myscripts/fig/continuation_plot
 egs2/ljspeech/tts1/myscripts/pairwise
+egs2/ljspeech/tts1/myscripts/mmos_results
 egs2/ljspeech/tts1/myscripts/secret.txt
