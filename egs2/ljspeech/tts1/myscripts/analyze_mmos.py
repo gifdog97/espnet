@@ -178,6 +178,81 @@ def plot_setting_ci_rank(
         plt.show()
 
 
+def per_setting_ci_iid500(
+    mmos_dict: Dict[str, List[Dict[str, Any]]],
+    ci_method: str = "t",  # "t" or "bootstrap"
+    alpha: float = 0.05,
+    bootstrap_B: int = 20000,
+    seed: int = 0,
+) -> pd.DataFrame:
+    """
+    Treat all raw scores within a setting as i.i.d. (e.g., 500 observations),
+    and compute CI for the mean.
+
+    Returns DataFrame with:
+      - setting
+      - n_scores
+      - mean_mmos
+      - se
+      - ci95_low, ci95_high
+    """
+    rng = np.random.default_rng(seed)
+
+    rows_out = []
+    for key, rows in mmos_dict.items():
+        df = pd.DataFrame(rows)
+        if "score" not in df.columns:
+            raise ValueError(f"mmos_dict[{key!r}] must contain dicts with key 'score'.")
+
+        scores = (
+            pd.to_numeric(df["score"], errors="coerce").dropna().to_numpy(dtype=float)
+        )
+        n = int(scores.size)
+        if n < 2:
+            rows_out.append(
+                dict(
+                    setting=key,
+                    n_scores=n,
+                    mean_mmos=float(np.mean(scores)) if n == 1 else np.nan,
+                    se=np.nan,
+                    ci95_low=np.nan,
+                    ci95_high=np.nan,
+                )
+            )
+            continue
+
+        mean_ = float(scores.mean())
+        se = float(scores.std(ddof=1) / np.sqrt(n))
+
+        if ci_method == "t":
+            tcrit = stats.t.ppf(1 - alpha / 2, df=n - 1)
+            lo, hi = mean_ - tcrit * se, mean_ + tcrit * se
+        elif ci_method == "bootstrap":
+            idx = rng.integers(0, n, size=(bootstrap_B, n))
+            means = scores[idx].mean(axis=1)
+            lo, hi = np.percentile(means, [100 * alpha / 2, 100 * (1 - alpha / 2)])
+        else:
+            raise ValueError("ci_method must be 't' or 'bootstrap'.")
+
+        rows_out.append(
+            dict(
+                setting=key,
+                n_scores=n,
+                mean_mmos=mean_,
+                se=se,
+                ci95_low=float(lo),
+                ci95_high=float(hi),
+            )
+        )
+
+    out = (
+        pd.DataFrame(rows_out)
+        .sort_values("mean_mmos", ascending=False)
+        .reset_index(drop=True)
+    )
+    return out
+
+
 def main():
     llm_score_dict, mmos_dict = extract_result_dict()
 
@@ -197,9 +272,10 @@ def main():
     correlation, p_value = spearmanr(averages_llm, averages_mmos)
     print(f"Spearman correlation: {correlation}, p-value: {p_value}")
     # df = per_setting_ci(mmos_dict, ci_method="bootstrap", bootstrap_B=20000, seed=0)
-    df = per_setting_ci(mmos_dict, ci_method="t")
-    df.to_csv("csv/mmos_per_setting_ci.csv", index=False)
-    plot_setting_ci_rank(df, outfile="fig/mmos_per_setting_ci.pdf")
+    # df = per_setting_ci(mmos_dict, ci_method="t")
+    df = per_setting_ci_iid500(mmos_dict, ci_method="t")
+    df.to_csv("csv/mmos_per_setting_ci_iid500.csv", index=False)
+    plot_setting_ci_rank(df, outfile="fig/mmos_per_setting_ci_iid500.pdf")
 
 
 if __name__ == "__main__":

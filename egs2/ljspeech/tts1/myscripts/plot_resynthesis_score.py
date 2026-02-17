@@ -131,7 +131,7 @@ def plot(df: pd.DataFrame, x_axis: str) -> None:
     fig, axes = plt.subplots(
         nrows=nrows,
         ncols=2,
-        figsize=(4.0, 6.6),
+        figsize=(3.8, 5.6),
         dpi=300,
     )
     fig.subplots_adjust(
@@ -175,7 +175,7 @@ def plot(df: pd.DataFrame, x_axis: str) -> None:
         ax.set_ylim(-5, 95)
         ax.set_yticks([0, 20, 40, 60, 80], minor=False)
         if num == 0:
-            ax.set_yticklabels([0, 20, 40, 60, 80], fontsize=9)
+            ax.set_yticklabels([0, 20, 40, 60, 80], fontsize=8)
         if num == 1:
             ax.set_yticklabels([])  # hide right y tick labels
         ax.grid()
@@ -217,7 +217,7 @@ def plot(df: pd.DataFrame, x_axis: str) -> None:
         ax.set_ylim(0.5, 5)
         ax.set_yticks([1, 2, 3, 4, 5])
         if num == 0:
-            ax.set_yticklabels([1, 2, 3, 4, 5], fontsize=9)
+            ax.set_yticklabels([1, 2, 3, 4, 5], fontsize=8)
         if num == 1:
             ax.set_yticklabels([])  # hide right y tick labels
         ax.grid()
@@ -297,7 +297,7 @@ def plot(df: pd.DataFrame, x_axis: str) -> None:
         ax.set_ylim(4.5, 10.5)
         ax.set_yticks([5, 6, 7, 8, 9, 10], minor=False)
         if num == 0:
-            ax.set_yticklabels([5, 6, 7, 8, 9, 10], fontsize=9)
+            ax.set_yticklabels([5, 6, 7, 8, 9, 10], fontsize=8)
         if num == 1:
             ax.set_yticklabels([])  # hide right y tick labels
         ax.grid()
@@ -338,7 +338,7 @@ def plot(df: pd.DataFrame, x_axis: str) -> None:
         ax.set_ylim(-0.05, 1.05)
         ax.set_yticks([0, 0.2, 0.4, 0.6, 0.8, 1], minor=False)
         if num == 0:
-            ax.set_yticklabels([0, 0.2, 0.4, 0.6, 0.8, 1], fontsize=9)
+            ax.set_yticklabels([0, 0.2, 0.4, 0.6, 0.8, 1], fontsize=8)
         if num == 1:
             ax.set_yticklabels([])  # hide right y tick labels
         ax.grid()
@@ -364,8 +364,8 @@ def plot(df: pd.DataFrame, x_axis: str) -> None:
                 )
             ax.set_xlim(0, 600)
             ax.set_xticks([0, 100, 200, 300, 400, 500, 600], minor=False)
-            ax.set_xticklabels([0, 1, 2, 3, 4, 5, 6], minor=False)
-            ax.set_xlabel("Bitrate (x100) [bps]", fontsize=10)
+            ax.set_xticklabels([0, 1, 2, 3, 4, 5, 6], minor=False, fontsize=8)
+            ax.set_xlabel("Bitrate (x100) [bps]", fontsize=9)
         else:
             for N, marker in zip(_N_LIST, _MARKERS):
                 indices = [f"{model_name}-{N}-{2**i}" for i in _I_LIST]
@@ -378,7 +378,7 @@ def plot(df: pd.DataFrame, x_axis: str) -> None:
                     linewidth=2,
                     alpha=0.7,
                 )
-            ax.set_xticks([1, 2, 3, 4, 5, 6, 7, 8], minor=False)
+            ax.set_xticks([1, 2, 3, 4, 5, 6, 7, 8], minor=False, fontsize=8)
             ax.set_xticklabels(
                 [
                     r"$2^7$",
@@ -392,7 +392,7 @@ def plot(df: pd.DataFrame, x_axis: str) -> None:
                 ],
                 minor=False,
             )
-            ax.set_xlabel("Cluster size (K)", fontsize=10)
+            ax.set_xlabel("Cluster size (K)", fontsize=8)
         if num == 0:
             bbox = ax.get_position()
             hans, labs = ax.get_legend_handles_labels()
@@ -407,7 +407,7 @@ def plot(df: pd.DataFrame, x_axis: str) -> None:
         ax.set_ylim(1, 5)
         ax.set_yticks([1, 2, 3, 4, 5], minor=False)
         if num == 0:
-            ax.set_yticklabels([1, 2, 3, 4, 5], fontsize=9)
+            ax.set_yticklabels([1, 2, 3, 4, 5], fontsize=8)
         if num == 1:
             ax.set_yticklabels([])  # hide right y tick labels
         ax.grid()
@@ -431,7 +431,7 @@ def plot(df: pd.DataFrame, x_axis: str) -> None:
             va="center",
             ha="center",
             rotation=90,
-            fontsize=10,
+            fontsize=9,
         )
 
     output = f"./fig/resynthesis_score_{x_axis}.pdf"

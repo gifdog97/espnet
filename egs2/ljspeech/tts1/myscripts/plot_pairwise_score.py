@@ -30,11 +30,11 @@ def plot_score(
     fig, axes = plt.subplots(
         nrows=1,
         ncols=2,
-        figsize=(4.4, 2),
+        figsize=(4.0, 1.8),
         dpi=300,
     )
     fig.subplots_adjust(
-        left=0.12, right=0.98, top=0.88, bottom=0.22, hspace=0.16, wspace=0.08
+        left=0.13, right=0.98, top=0.88, bottom=0.24, hspace=0.16, wspace=0.08
     )
     for model, setting_scores in score_dict.items():
         if model == "tacotron2":
@@ -67,8 +67,8 @@ def plot_score(
                 yerr=ci95,
                 marker=_MARKERS[i],
                 label=f"N={N}",
-                markersize=3,
-                linewidth=1.5,
+                markersize=2.5,
+                linewidth=1.25,
             )
         ax.set_xlim(80, 520)
         xticks = [100, 200, 300, 400, 500]

@@ -197,7 +197,7 @@ def plot(axes, df, x_axis: str):
                 handles=hans,
                 labels=labs,
                 loc="lower left",
-                bbox_to_anchor=(bbox.x0, bbox.y0),
+                bbox_to_anchor=(bbox.x0, bbox.y0 + 0.03),
                 fontsize=8,
                 ncol=3,
             )
@@ -233,7 +233,7 @@ if __name__ == "__main__":
     fig, axes = plt.subplots(
         nrows=2,
         ncols=2,
-        figsize=(4.2, 3.4),
+        figsize=(4.0, 3.0),
         constrained_layout=True,
         dpi=300,
     )
@@ -246,3 +246,4 @@ if __name__ == "__main__":
         output = f"./fig/continuation_score_{args.x_axis}.pdf"
 
     fig.savefig(output)
+    print(f"Saved figure to {output}")
