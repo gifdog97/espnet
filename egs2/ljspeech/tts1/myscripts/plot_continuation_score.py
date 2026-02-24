@@ -225,7 +225,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--output",
-        default=None,
+        default="./fig/continuation_score_10s_bitrate.pdf",
         help="output pdf path",
     )
     args = parser.parse_args()
