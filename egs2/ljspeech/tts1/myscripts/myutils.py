@@ -44,6 +44,6 @@ def extract_llm_scores(summary_path: Path) -> list[float]:
     with summary_path.open("r") as f:
         next(f)  # skip header
         for line in f:
-            _, score_str = line.strip().split(",")
+            _, score_str, _ = line.strip().split(",", 2)
             scores.append(float(score_str))
     return scores
