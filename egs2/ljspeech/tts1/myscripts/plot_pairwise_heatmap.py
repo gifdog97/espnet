@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Mapping
@@ -12,7 +13,7 @@ from matplotlib import rcParams
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from myutils import extract_llm_scores, parse_bitrate
 
-PAIRWISE_DIR = Path("pairwise")
+PAIRWISE_DIR = Path("pairwise_10s")
 
 rcParams["pdf.fonttype"] = 42
 # フォントファイルのパスを指定
@@ -27,6 +28,23 @@ font_prop = fm.FontProperties(fname=font_path)
 
 # グローバル設定に反映（全体に適用）
 plt.rcParams["font.family"] = font_prop.get_name()
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--pairwise_dir",
+        type=Path,
+        default=PAIRWISE_DIR,
+        help="Directory containing pairwise LLM evaluation results",
+    )
+    parser.add_argument(
+        "--output_path",
+        type=Path,
+        default="fig/pairwise_10s_heatmap.pdf",
+        help="Path to save the generated heatmap figure (PDF)",
+    )
+    return parser.parse_args()
 
 
 def plot_pairwise(
@@ -237,9 +255,10 @@ def plot_pairwise(
 
 
 def main():
+    args = parse_args()
     bitrate_dict = parse_bitrate("csv/bitrate.csv")
     score_dict = defaultdict(lambda: defaultdict(dict))
-    for pairwise_dir in PAIRWISE_DIR.iterdir():
+    for pairwise_dir in args.pairwise_dir.iterdir():
         if "_vs_" not in pairwise_dir.name:
             continue
         # {model}-{N}-{K}-{temperature}_vs_{model}-{N}-{K}-{temperature}
@@ -253,7 +272,8 @@ def main():
             "bitrate_Y": bitrate_Y,
             "scores": extract_llm_scores(pairwise_dir / "summary.txt"),
         }
-    plot_pairwise(score_dict, save_path="fig/pairwise_heatmap.pdf")
+    plot_pairwise(score_dict, save_path=args.output_path)
+    print(f"Saved heatmap figure to {args.output_path}")
 
 
 if __name__ == "__main__":

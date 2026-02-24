@@ -1,3 +1,4 @@
+import argparse
 from collections import defaultdict
 from pathlib import Path
 
@@ -7,7 +8,7 @@ import numpy as np
 from matplotlib import rcParams
 from myutils import extract_llm_scores, parse_bitrate
 
-PAIRWISE_DIR = Path("pairwise")
+PAIRWISE_DIR = Path("pairwise_10s")
 _MARKERS = "osDv^<>X"
 
 rcParams["pdf.fonttype"] = 42
@@ -24,8 +25,27 @@ font_prop = fm.FontProperties(fname=font_path)
 plt.rcParams["font.family"] = font_prop.get_name()
 
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--pairwise_dir",
+        type=Path,
+        default=PAIRWISE_DIR,
+        help="Directory containing pairwise LLM evaluation results",
+    )
+    parser.add_argument(
+        "--output_path",
+        type=Path,
+        default="fig/pairwise_10s_score.pdf",
+        help="Path to save the generated score figure (PDF)",
+    )
+    return parser.parse_args()
+
+
 def plot_score(
-    score_dict: dict[str, dict[str, list[float]]], bitrate_dict: dict[str, float]
+    score_dict: dict[str, dict[str, list[float]]],
+    bitrate_dict: dict[str, float],
+    output_path: str,
 ):
     fig, axes = plt.subplots(
         nrows=1,
@@ -86,14 +106,15 @@ def plot_score(
         ax.set_title(model)
         ax.legend(fontsize=8, ncol=2, columnspacing=0.8, loc="lower right")
         ax.grid()
-    plt.savefig("fig/pairwise_score.pdf")
-    print("Saved figure to fig/pairwise_score.pdf")
+    plt.savefig(output_path)
+    print(f"Saved figure to {output_path}")
 
 
 def main():
+    args = parse_args()
     bitrate_dict = parse_bitrate("csv/bitrate.csv")
     score_dict = defaultdict(lambda: defaultdict(list))
-    for pairwise_dir in PAIRWISE_DIR.iterdir():
+    for pairwise_dir in Path(args.pairwise_dir).iterdir():
         if "_vs_" not in pairwise_dir.name:
             continue
         # tacotron vs. vits と vits vs. tacotron を無視
@@ -106,7 +127,7 @@ def main():
         score_dict[model][f"{N}-{K}"].extend(
             extract_llm_scores(pairwise_dir / "summary.txt")
         )
-    plot_score(score_dict, bitrate_dict)
+    plot_score(score_dict, bitrate_dict, args.output_path)
 
 
 if __name__ == "__main__":

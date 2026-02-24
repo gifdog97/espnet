@@ -213,6 +213,11 @@ def plot(axes, df, x_axis: str):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        "--continuation-result-csv",
+        default="./csv/continuation_result_10s.csv",
+        help="input CSV file path containing continuation results (PPL, VERT, bitrate)",
+    )
+    parser.add_argument(
         "--x-axis",
         choices=["K", "bitrate"],
         default="bitrate",
@@ -226,7 +231,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # load results
-    df = pd.read_csv("./csv/continuation_result.csv", index_col=0)
+    df = pd.read_csv(args.continuation_result_csv, index_col=0)
 
     df = df[df["distance"].notna()]
 

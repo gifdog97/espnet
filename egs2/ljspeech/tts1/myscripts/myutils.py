@@ -1,5 +1,12 @@
 from pathlib import Path
 
+WER_THRESHOLD = 5.0
+UTMOS_THRESHOLD = 4.0
+
+
+def is_valid_setting(wer: float, utmos: float) -> bool:
+    return wer <= WER_THRESHOLD and utmos >= UTMOS_THRESHOLD
+
 
 def to_kanji(text: str) -> str:
     return " ".join([chr(0x4E00 + int(c)) for c in text.split(" ")])

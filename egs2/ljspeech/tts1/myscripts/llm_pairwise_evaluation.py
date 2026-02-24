@@ -1,3 +1,4 @@
+import argparse
 import csv
 import itertools
 import random
@@ -24,9 +25,7 @@ client = OpenAI(
     base_url=api_base,
 )
 
-CONTINUATION_RESULTS = (
-    "/work/gk77/k77035/espnet/egs2/ljspeech/tts1/myscripts/csv/continuation_result.csv"
-)
+CONTINUATION_RESULTS = "/work/gk77/k77035/espnet/egs2/ljspeech/tts1/myscripts/csv/continuation_result_10s.csv"
 PROMPT_TEMPLATE = Template("""
 # Instructions
 
@@ -63,13 +62,39 @@ ${text_B}
 """)
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Pairwise evaluation of LLM-generated continuations."
+    )
+    parser.add_argument(
+        "--continuation_results",
+        type=str,
+        default=CONTINUATION_RESULTS,
+        help="Path to the CSV file containing continuation results.",
+    )
+    parser.add_argument(
+        "--transcription_dir",
+        type=str,
+        default="transcription_cut_10s",
+        help="Path to the directory containing transcription files.",
+    )
+    parser.add_argument(
+        "--output_dir",
+        type=str,
+        default="pairwise_10s",
+        help="Directory to save pairwise comparison results.",
+    )
+    return parser.parse_args()
+
+
 def extract_transcriptions(file_path: Path):
     transcriptions = {}
     with open(file_path) as f:
         for line in f:
             wav_id, transcription = line.strip().split("|")
-            if not wav_id.endswith("-0"):
-                continue
+            # NOTE: Instead of extracting first utterance with "-0" suffix, we turn to extract 10s trimmed transcriptions.
+            # if not wav_id.endswith("-0"):
+            #     continue
             transcriptions[wav_id] = transcription.strip()
     return transcriptions
 
@@ -86,7 +111,7 @@ def with_retry(func, *args, max_retries=5, **kwargs):
 
 
 def calculate_score(
-    setting_transcriptions_X: dict, setting_transcriptions_Y: dict
+    setting_transcriptions_X: dict, setting_transcriptions_Y: dict, output_dir: Path
 ) -> dict[str, Union[int, float]]:
     """
     Quality score of X over Y judged by GPT-4.1-mini.
@@ -95,7 +120,7 @@ def calculate_score(
     setting_X = setting_transcriptions_X["setting"]
     setting_Y = setting_transcriptions_Y["setting"]
     print(f"{setting_X} vs {setting_Y}")
-    output_dir = Path(f"pairwise/{setting_X}_vs_{setting_Y}")
+    output_dir = output_dir / f"{setting_X}_vs_{setting_Y}"
     output_dir.mkdir(parents=True, exist_ok=True)
     transcriptions_X = setting_transcriptions_X["transcription"]
     transcriptions_Y = setting_transcriptions_Y["transcription"]
@@ -153,7 +178,8 @@ def calculate_score(
 
 
 def main():
-    with open(Path(CONTINUATION_RESULTS), "r") as f:
+    args = parse_args()
+    with open(Path(args.continuation_results), "r") as f:
         reader = csv.DictReader(f)
         valid_settings = [
             f"{row['setting']}-{row['temperature']}"
@@ -174,14 +200,16 @@ def main():
             model_X, nkt_X = setting_X.split("-", 1)
             model_Y, nkt_Y = setting_Y.split("-", 1)
             transcription_X = extract_transcriptions(
-                Path(f"transcription/{model_X}/fixed_{nkt_X}.txt")  # CHANGE
+                Path(f"{args.transcription_dir}/{model_X}/{nkt_X}.txt")
             )
             transcription_Y = extract_transcriptions(
-                Path(f"transcription/{model_Y}/fixed_{nkt_Y}.txt")  # CHANGE
+                Path(f"{args.transcription_dir}/{model_Y}/{nkt_Y}.txt")
             )
             dict_X = {"setting": setting_X, "transcription": transcription_X}
             dict_Y = {"setting": setting_Y, "transcription": transcription_Y}
-            future = executor.submit(calculate_score, dict_X, dict_Y)
+            future = executor.submit(
+                calculate_score, dict_X, dict_Y, Path(args.output_dir)
+            )
             future_to_pair[future] = (setting_X, setting_Y)
             futures.append(future)
         for future in as_completed(futures):
@@ -191,7 +219,9 @@ def main():
             except Exception as e:
                 print(f"Error for pair ({setting_X}, {setting_Y}): {e}")
                 traceback.print_exc()
-    with open("pairwise/result_summary.csv", "w") as f:
+    # Set UID to avoid overwriting results, particularly when retrying a subset of pairs.
+    uid = time.strftime("%Y%m%d-%H%M%S")
+    with open(Path(args.output_dir) / f"result_summary_{uid}.csv", "w") as f:
         writer = csv.DictWriter(f, fieldnames=results[0].keys())
         writer.writeheader()
         for result in results:
