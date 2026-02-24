@@ -10,7 +10,7 @@ def parse_args():
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--resynthesi_result_file",
+        "--resynthesis_result_file",
         type=str,
         help="Path to the resynthesis result CSV file.",
         default="csv/resynthesis_result.csv",
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     gold_ppl = read_ppl(gold_ppl_csv)
     gold_bleu = read_bleu(gold_bleu_csv)
 
-    df = pd.read_csv(args.resynthesi_result_file, index_col=0)
+    df = pd.read_csv(args.resynthesis_result_file, index_col=0)
     gold_wer = float(df.loc["gold", "wer"])
     gold_utmos = float(df.loc["gold", "UTMOS"])
 
