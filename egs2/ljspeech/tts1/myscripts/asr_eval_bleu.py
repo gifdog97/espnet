@@ -7,6 +7,7 @@
 # https://github.com/facebookresearch/fairseq/blob/main/examples/textless_nlp/gslm/metrics/asr_metrics/self_auto_bleu.py
 
 import warnings
+from collections import defaultdict
 from multiprocessing import Pool
 
 import nltk
@@ -123,6 +124,41 @@ def auto_bleu(sentence, weights, mean_mode="arithmetic"):
         return (bleu_n**weights).prod()
     else:
         raise ValueError(f"Unknown agggregation mode {mean_mode}")
+
+
+def all_scores(asr_transcript):
+    with open(asr_transcript, "r") as fin:
+        lines = fin.readlines()
+
+    terms = [x.strip().split() for x in lines]
+
+    tasks = [
+        # ("Self-BLEU2-arithmetic", get_self_bleu2_arithmetic),
+        ("Self-BLEU2-geometric", get_self_bleu2_geometric),
+        # ("Auto-BLEU2-arithmetic", get_auto_bleu2_arithmetic),
+        ("Auto-BLEU2-geometric", get_auto_bleu2_geometric),
+        # ("Self-BLEU3-arithmetic", get_self_bleu3_arithmetic),
+        # ("Self-BLEU3-geometric", get_self_bleu3_geometric),
+        # ("Auto-BLEU3-arithmetic", get_auto_bleu3_arithmetic),
+        # ("Auto-BLEU3-geometric", get_auto_bleu3_geometric),
+    ]
+
+    n_processes = min(16, len(tasks))
+    with Pool(n_processes) as pool:
+        metrics = pool.map(run_f, [(t[1], terms) for t in tasks])
+
+    metric_dict = defaultdict(list)
+    for (metric_name, _), metric in zip(tasks, metrics):
+        for m in metric:
+            metric_dict[metric_name].append(m)
+        # metric, sem = np.mean(metric), np.std(metric) / np.sqrt(len(metric))
+        # metric, sem = [round(100 * x, 2) for x in [metric, sem]]
+
+    for m1, m2 in zip(metrics[0], metrics[1]):
+        metric_dict["VERT"].append(round(np.sqrt(100 * m1 * 100 * m2), 2))
+    # vert = round(np.sqrt(100 * np.mean(metrics[0]) * 100 * np.mean(metrics[1])), 2)
+
+    return metric_dict
 
 
 def main():
