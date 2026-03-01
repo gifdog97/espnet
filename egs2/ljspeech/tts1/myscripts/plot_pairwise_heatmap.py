@@ -240,7 +240,7 @@ def plot_pairwise(
     cax = divider.append_axes("right", size="2.5%", pad=0.3)
 
     cbar = fig.colorbar(im, ax=ax, cax=cax)
-    ticks = np.arange(-0.4, 0.4 + 1e-9, 0.1)
+    ticks = np.arange(-0.3, 0.3 + 1e-9, 0.1)
     cbar.set_ticks(ticks)
     cbar.ax.tick_params(labelsize=8)
 
