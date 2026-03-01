@@ -10,10 +10,8 @@ import numpy as np
 import pandas as pd
 from matplotlib import rcParams
 from matplotlib.patches import Rectangle
-from myutils import extract_llm_scores
-from scipy.stats import mannwhitneyu, spearmanr, t
+from scipy.stats import mannwhitneyu, t
 
-PAIRWISE_DIR = Path("pairwise")
 MMOS_DIR = Path("mmos_results")
 rcParams["pdf.fonttype"] = 42
 
@@ -30,7 +28,6 @@ font_prop = fm.FontProperties(fname=font_path)
 # グローバル設定に反映（全体に適用）
 plt.rcParams["font.family"] = font_prop.get_name()
 
-import matplotlib.pyplot as plt
 
 # ----------------------------
 # Multiple comparison corrections
@@ -176,25 +173,12 @@ def plot_mwu_heatmap(
     }
 
 
-def extract_result_dict() -> tuple[
-    dict[str, list[float]], dict[str, list[dict[str, int]]]
-]:
-    # extract llm_score_dict and mmos_dict
+def extract_mmos_dict() -> dict[str, list[dict[str, int]]]:
     # mapping from setting (N-K) to list of scores
-    llm_score_dict = defaultdict(list)
     mmos_dict = defaultdict(list)
-    for pairwise_dir in PAIRWISE_DIR.iterdir():
-        if "_vs_" not in pairwise_dir.name:
-            continue
-        # tacotron vs tacotron だけ処理
-        if pairwise_dir.name.count("tacotron2") != 2:
-            continue
-        setting_X = pairwise_dir.name.split("_vs_")[0]
-        model, N, K, temperature = setting_X.split("-")
-        llm_score_dict[f"{N}-{K}"].extend(
-            extract_llm_scores(pairwise_dir / "summary.txt")
-        )
-        with open(MMOS_DIR / "summary" / f"{N}-{K}-{temperature}.csv") as f:
+    for csv_file in (MMOS_DIR / "summary").glob("*.csv"):
+        N, K, _ = csv_file.name.replace(".csv", "").split("-")
+        with open(csv_file) as f:
             if f"{N}-{K}" in mmos_dict:
                 continue
             for line in f.readlines()[1:]:  # skip header
@@ -203,7 +187,7 @@ def extract_result_dict() -> tuple[
                 mmos_dict[f"{N}-{K}"].append(
                     {"rater_id": rater_id, "sample_id": sample_id, "score": int(score)}
                 )
-    return llm_score_dict, mmos_dict
+    return mmos_dict
 
 
 def plot_setting_ci(
@@ -246,8 +230,8 @@ def plot_setting_ci(
         capsize=3,
     )
 
-    plt.ylim(2.3, 3.0)
-    yticks = [2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.0]
+    plt.ylim(2.1, 2.8)
+    yticks = [2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8]
     plt.yticks(yticks, fontsize=10)
     plt.xticks(x, labels, rotation=90, fontsize=10)
     plt.grid(axis="y", alpha=0.3)
@@ -335,29 +319,28 @@ def per_setting_ci(
 
 
 def main():
-    llm_score_dict, mmos_dict = extract_result_dict()
+    mmos_dict = extract_mmos_dict()
 
-    # plot scatter plot of averages_llm and averages_mmos
-    averages_llm = [sum(scores) / len(scores) for scores in llm_score_dict.values()]
-    averages_mmos = [
-        sum(d["score"] for d in scores) / len(scores) for scores in mmos_dict.values()
-    ]
-    plt.scatter(averages_llm, averages_mmos)
-    plt.xlabel("Average LLM Scores")
-    plt.ylabel("Average MMOS Scores")
-    plt.title("Scatter plot of Average LLM and MMOS Scores")
-    plt.savefig("fig/llm_mmos_scatter_plot.pdf")
-    plt.close()
-
-    # calculate spearman correlation
-    correlation, p_value = spearmanr(averages_llm, averages_mmos)
-    print(f"Spearman correlation: {correlation}, p-value: {p_value}")
     df = per_setting_ci(mmos_dict, ci_method="t")
     df.to_csv("csv/mmos_per_setting_ci.csv", index=False)
     plot_setting_ci(df, outfile="fig/mmos_per_setting_ci.pdf")
 
     plot_mwu_heatmap(mmos_dict, correction="none", alpha=0.05)
-    plot_mwu_heatmap(mmos_dict, correction="bonferroni", alpha=0.05)
+    bonferroni_dict = plot_mwu_heatmap(mmos_dict, correction="bonferroni", alpha=0.05)
+    bonferroni_df = pd.DataFrame(
+        [
+            {
+                "setting_i": bonferroni_dict["settings"][i],
+                "setting_j": bonferroni_dict["settings"][j],
+                "mean_diff": bonferroni_dict["mean_diff"][i, j],
+                "p_adj": bonferroni_dict["pvals_adj"][i, j],
+                "significant": bonferroni_dict["significant"][i, j],
+            }
+            for i in range(len(bonferroni_dict["settings"]))
+            for j in range(i + 1, len(bonferroni_dict["settings"]))
+        ]
+    )
+    bonferroni_df.to_csv("csv/mmos_bonferroni.csv", index=False)
     plot_mwu_heatmap(mmos_dict, correction="holm", alpha=0.05)
     plot_mwu_heatmap(mmos_dict, correction="fdr_bh", alpha=0.05)
 
