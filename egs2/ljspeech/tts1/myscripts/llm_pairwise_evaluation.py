@@ -199,6 +199,17 @@ def main():
         for setting_X, setting_Y in itertools.product(valid_settings, repeat=2):
             model_X, nkt_X = setting_X.split("-", 1)
             model_Y, nkt_Y = setting_Y.split("-", 1)
+            # 異モデルの比較はスキップ
+            # if model_X != model_Y:
+            #     continue
+            # 存在するペアの再計算を避ける
+            if (
+                Path(args.output_dir) / f"{setting_X}_vs_{setting_Y}" / "summary.txt"
+            ).exists():
+                print(
+                    f"Output for pair ({setting_X}, {setting_Y}) already exists. Skipping..."
+                )
+                continue
             transcription_X = extract_transcriptions(
                 Path(f"{args.transcription_dir}/{model_X}/{nkt_X}.txt")
             )
