@@ -196,7 +196,7 @@ def plot_setting_ci(
     lo_col="ci95_low",
     hi_col="ci95_high",
     label_col="setting",
-    figsize=(6, 2.4),
+    figsize=(6, 2.2),
     ylabel="MMOS",
     outfile=None,
 ):
@@ -212,7 +212,10 @@ def plot_setting_ci(
     means = df[mean_col].to_numpy(dtype=float)
     lo = df[lo_col].to_numpy(dtype=float)
     hi = df[hi_col].to_numpy(dtype=float)
-    labels = df[label_col].astype(str).to_list()
+    labels = [
+        f"({label.split('-')[0]}, {label.split('-')[1]})"
+        for label in df[label_col].astype(str).to_list()
+    ]
 
     # asymmetric vertical error bars
     err_low = means - lo
