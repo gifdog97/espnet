@@ -33,9 +33,10 @@ def extract_settings(
 
 
 def prepare_df():
-    settings = extract_settings("csv/continuation_result.csv")
+    settings = extract_settings("csv/continuation_result_10s.csv")
     assert len(settings) == 21, f"Expected 21 settings, got {len(settings)}"
-    path_template_t = "/work/gk77/k77035/espnet/egs2/ljspeech/tts1/exp/fixed_{N}-{K}_dedup/tts_train_raw_phn_none/continuation_{temperature}/dev/wav"
+    # path_template_t = "/work/gk77/k77035/espnet/egs2/ljspeech/tts1/exp/fixed_{N}-{K}_dedup/tts_train_raw_phn_none/continuation_{temperature}/dev/wav"
+    path_template_t = "/work/gk77/k77035/espnet/egs2/ljspeech/tts1/myscripts/audio_cut_10s/{N}-{K}-{temperature}"
     audio_dirs = [
         Path(path_template_t.format(N=N, K=K, temperature=temperature))
         for _, N, K, temperature in settings
@@ -46,8 +47,8 @@ def prepare_df():
     for wav_dir in audio_dirs:
         this_audio_paths = []
         for audio_path in sorted(wav_dir.glob("*.wav")):
-            if not audio_path.stem.endswith("-0"):
-                continue
+            # if not audio_path.stem.endswith("-0"):
+            #     continue
             this_audio_paths.append(str(audio_path))
             if len(this_audio_paths) == SAMPLES_PER_SETTING:
                 break
