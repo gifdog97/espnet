@@ -43,14 +43,14 @@ fi
 if [ ${stage} -le 0 ] && [ ${stop_stage} -ge 0 ]; then
     log "stage 0: Data Preparation"
     # set filenames
-    scp=data/train/wav.scp
-    utt2spk=data/train/utt2spk
-    spk2utt=data/train/spk2utt
-    text=data/train/text
-    durations=data/train/durations
+    scp=data_orig/train/wav.scp
+    utt2spk=data_orig/train/utt2spk
+    spk2utt=data_orig/train/spk2utt
+    text=data_orig/train/text
+    durations=data_orig/train/durations
 
     # check file existence
-    [ ! -e data/train ] && mkdir -p data/train
+    [ ! -e data_orig/train ] && mkdir -p data_orig/train
     [ -e ${scp} ] && rm ${scp}
     [ -e ${utt2spk} ] && rm ${utt2spk}
     [ -e ${spk2utt} ] && rm ${spk2utt}
@@ -73,17 +73,17 @@ if [ ${stage} -le 0 ] && [ ${stop_stage} -ge 0 ]; then
         <(cut -d "|" -f 3 < ${db_root}/LJSpeech-1.1/metadata.csv) \
         > ${text}
 
-    utils/validate_data_dir.sh --no-feats data/train
+    utils/validate_data_dir.sh --no-feats data_orig/train
 fi
 
 if [ ${stage} -le 1 ] && [ ${stop_stage} -ge 1 ]; then
     log "stage 1: utils/subset_data_dir.sh"
     # make evaluation and devlopment sets
-    utils/subset_data_dir.sh --last data/train 500 data/deveval
-    utils/subset_data_dir.sh --last data/deveval 250 data/${eval_set}
-    utils/subset_data_dir.sh --first data/deveval 250 data/${train_dev}
-    n=$(( $(wc -l < data/train/wav.scp) - 500 ))
-    utils/subset_data_dir.sh --first data/train ${n} data/${train_set}
+    utils/subset_data_dir.sh --last data_orig/train 500 data_orig/deveval
+    utils/subset_data_dir.sh --last data_orig/deveval 250 data_orig/${eval_set}
+    utils/subset_data_dir.sh --first data_orig/deveval 250 data_orig/${train_dev}
+    n=$(( $(wc -l < data_orig/train/wav.scp) - 500 ))
+    utils/subset_data_dir.sh --first data_orig/train ${n} data_orig/${train_set}
 fi
 
 log "Successfully finished. [elapsed=${SECONDS}s]"
