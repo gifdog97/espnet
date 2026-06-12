@@ -1,3 +1,4 @@
+import argparse
 import itertools
 import os
 import wave
@@ -9,6 +10,14 @@ import pandas as pd
 from myutils import is_valid_setting
 from pydub import AudioSegment
 from tqdm import tqdm
+
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--exp_dir",
+    default="/work/gk77/k77035/espnet/egs2/ljspeech/tts1/exp",
+    help="experimental directory containing synthesized wav files",
+)
+args = parser.parse_args()
 
 
 # Ns = ["20", "40", "80", "120", "160", "200", "240", "280"]
@@ -40,13 +49,13 @@ def build_tasks(valid_settings):
         for temperature in temperatures:
             if model == "tacotron2":
                 wav_path = (
-                    f"/work/gk77/k77035/espnet/egs2/ljspeech/tts1/exp/"
+                    f"{args.exp_dir}/"
                     f"fixed_{NK}_dedup/tts_train_raw_phn_none/"
                     f"continuation_{temperature}/dev/wav"
                 )
             else:  # vits
                 wav_path = (
-                    f"/work/gk77/k77035/espnet/egs2/ljspeech/tts1/exp/"
+                    f"{args.exp_dir}/"
                     f"fixed_{NK}_dedup-vits/tts_train_vits_raw_phn_none/"
                     f"vits_continuation_{temperature}/dev/wav"
                 )

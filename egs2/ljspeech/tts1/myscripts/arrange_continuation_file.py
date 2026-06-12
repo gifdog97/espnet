@@ -3,14 +3,20 @@
 LJ049-0008-0 丑 丳 不 乹 一 丢 临 ...
 """
 
+import argparse
 from pathlib import Path
 
 import pandas as pd
 from myutils import to_kanji
 
-CONTINUATION_CSV_DIR = (
-    "../../../../../speechLM/experiment/units/LJSpeech-1.1/continuation"
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--continuation_csv_dir",
+    default="speechLM/experiment/units/LJSpeech-1.1/continuation",
 )
+
+args = parser.parse_args()
+
 CONTINUATION_OUTPUT_DIR = "../dump/continuation"
 
 ### --- Create continuation text files for all experimental settings --- ###
@@ -24,7 +30,7 @@ for N in [20, 40, 80, 120, 160, 200, 240, 280]:
 # Write continuation text files for each setting
 for setting in settings:
     # Prepare inputs
-    units_file = Path(f"{CONTINUATION_CSV_DIR}/{setting}.csv")
+    units_file = Path(f"{args.continuation_csv_dir}/{setting}.csv")
     output_path = Path(f"{CONTINUATION_OUTPUT_DIR}/{setting}/raw/dev/text")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     df = pd.read_csv(units_file)

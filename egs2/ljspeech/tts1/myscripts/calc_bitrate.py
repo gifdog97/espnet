@@ -1,9 +1,17 @@
+import argparse
 from collections import Counter
 from math import log2
 from pathlib import Path
 
 import pandas as pd
 from myutils import create_units_dict
+
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--units_dir", default="speechLM/experiment/units/LJSpeech-1.1/wavs"
+)
+
+args = parser.parse_args()
 
 
 def calc_entropy(units_list: list[list[str]]) -> float:
@@ -31,9 +39,7 @@ for N in [20, 40, 80, 120, 160, 200, 240, 280]:
     for i in range(7, 15):
         K = 2**i
         setting = f"fixed_{N}-{K}_dedup"
-        units_file = Path(
-            f"/work/gk77/k77035/speechLM/experiment/units/LJSpeech-1.1/wavs/{setting}.csv"
-        )
+        units_file = Path(f"{args.units_dir}/{setting}.csv")
         units_dict = create_units_dict(units_file)
         units_list = [units.split(" ") for units in units_dict.values()]
         bitrate = calc_bitrate(units_list)

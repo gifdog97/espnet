@@ -1,3 +1,4 @@
+import argparse
 import itertools
 import re
 
@@ -5,6 +6,13 @@ import jiwer
 from whisper_normalizer.english import EnglishTextNormalizer
 
 OUT_PATH = "csv/resynthesis_error_rates.csv"
+
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--original_transcription_dir",
+    default="../data_orig/eval1/text",
+)
+args = parser.parse_args()
 
 
 def compute_error_rates(
@@ -30,9 +38,7 @@ def parse_transcriptions(transcription_path: str) -> dict[str, str]:
 
 
 def main():
-    original_transcription_path = (
-        "/work/gk77/k77035/espnet/egs2/ljspeech/tts1/data_orig/eval1/text"
-    )
+    original_transcription_path = f"{args.original_transcription_dir}/text"
     original_results = parse_transcriptions(original_transcription_path)
     NK_combinations = list(
         itertools.product(
