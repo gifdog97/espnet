@@ -25,7 +25,6 @@ client = OpenAI(
     base_url=api_base,
 )
 
-CONTINUATION_RESULTS = "/work/gk77/k77035/espnet/egs2/ljspeech/tts1/myscripts/csv/continuation_result_10s.csv"
 PROMPT_TEMPLATE = Template("""
 # Instructions
 
@@ -69,7 +68,7 @@ def parse_args():
     parser.add_argument(
         "--continuation_results",
         type=str,
-        default=CONTINUATION_RESULTS,
+        default="csv/continuation_result_10s.csv",
         help="Path to the CSV file containing continuation results.",
     )
     parser.add_argument(
@@ -200,8 +199,8 @@ def main():
             model_X, nkt_X = setting_X.split("-", 1)
             model_Y, nkt_Y = setting_Y.split("-", 1)
             # 異モデルの比較はスキップ
-            # if model_X != model_Y:
-            #     continue
+            if model_X != model_Y:
+                continue
             # 存在するペアの再計算を避ける
             if (
                 Path(args.output_dir) / f"{setting_X}_vs_{setting_Y}" / "summary.txt"

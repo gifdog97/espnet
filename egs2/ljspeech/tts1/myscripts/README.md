@@ -159,7 +159,15 @@ Here we explain the procedure for calculating metrics except for MMOS because it
 
 #### LLM-as-a-Judge
 
-TBD
+This procedure assumes following input
+
+1. OpenAI API Key (save it in `secret.txt`)
+2. Transcriptions of 10 second continuation
+3. Summary of continuation (output of `summarize_continuation_result.py).
+
+Run `python llm_pairwise_evaluation.py` with appropriate options for performin LLM-as-a-Judge evaluation.
+Note that you will be charged for the OpenAI API usage.
+You can visialize the result with `plot_pairwise_score.py`.
 
 ## Citing
 
